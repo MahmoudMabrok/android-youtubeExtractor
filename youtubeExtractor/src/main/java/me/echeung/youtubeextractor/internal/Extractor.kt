@@ -27,11 +27,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Matcher
-import java.util.regex.Pattern
 
 class Extractor(private val refContext: WeakReference<Context>, private val cacheDirPath: String) {
 
-    private val formatMap = FormatMap()
     private val http = HttpClient()
     private var videoId: String? = null
 
@@ -131,7 +129,7 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
             val mat2 = patItag.matcher(url)
             if (!mat2.find()) continue
             val itag = mat2.group(1).toInt()
-            if (formatMap.FORMAT_MAP[itag] == null) {
+            if (FORMAT_MAP[itag] == null) {
                 Log.d(LOG_TAG, "Itag not in list:$itag")
                 continue
             }
@@ -142,8 +140,7 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
             if (sig != null) {
                 encSignatures!!.append(itag, sig)
             }
-            val format = formatMap.FORMAT_MAP[itag]
-            val newVideo = Video(format!!, url)
+            val newVideo = Video(FORMAT_MAP[itag]!!, url)
             ytFiles.put(itag, newVideo)
         }
         if (encSignatures != null) {
@@ -170,16 +167,13 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
                     val key = encSignatures.keyAt(i)
                     var url = ytFiles[key].url
                     url += "&sig=" + sigs[i]
-                    val newFile = Video(
-                        formatMap.FORMAT_MAP[key]!!, url
-                    )
-                    ytFiles.put(key, newFile)
+                    ytFiles.put(key, Video(FORMAT_MAP[key]!!, url))
                     i++
                 }
             }
         }
         if (ytFiles.size() == 0) {
-            Log.d(LOG_TAG, streamMap!!)
+            Log.d(LOG_TAG, streamMap)
             return null
         }
         return ytFiles
@@ -197,7 +191,7 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
                         mat = patHlsItag.matcher(it)
                         if (mat.find()) {
                             val itag: Int = mat.group(1).toInt()
-                            val newFile = Video(formatMap.FORMAT_MAP[itag]!!, it)
+                            val newFile = Video(FORMAT_MAP[itag]!!, it)
                             ytFiles.put(itag, newFile)
                         }
                     }
@@ -241,19 +235,15 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
             if (mat.find()) {
                 decipherFunctionName = mat.group(1)
                 Log.d(LOG_TAG, "Decipher Functname: $decipherFunctionName")
-                val patMainVariable = Pattern.compile(
-                    "(var |\\s|,|;)" + decipherFunctionName!!.replace("$", "\\$") +
-                        "(=function\\((.{1,3})\\)\\{)"
-                )
+                val patMainVariable = ("(var |\\s|,|;)" + decipherFunctionName!!.replace("$", "\\$") +
+                        "(=function\\((.{1,3})\\)\\{)").toPattern()
                 var mainDecipherFunct: String
                 mat = patMainVariable.matcher(javascriptFile)
                 if (mat.find()) {
                     mainDecipherFunct = "var " + decipherFunctionName + mat.group(2)
                 } else {
-                    val patMainFunction = Pattern.compile(
-                        "function " + decipherFunctionName!!.replace("$", "\\$") +
-                            "(\\((.{1,3})\\)\\{)"
-                    )
+                    val patMainFunction = ("function " + decipherFunctionName!!.replace("$", "\\$") +
+                            "(\\((.{1,3})\\)\\{)").toPattern()
                     mat = patMainFunction.matcher(javascriptFile)
                     if (!mat.find()) return false
                     mainDecipherFunct = "function " + decipherFunctionName + mat.group(2)
@@ -413,25 +403,25 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
         private var decipherFunctions: String? = null
         private var decipherFunctionName: String? = null
 
-        private val patHlsManifestUrl = Pattern.compile("(.*?)^https(.*?)(?=\")")
-        private val patHlsvp = Pattern.compile("hlsManifestUrl%22%3A%22(.+?)(&|\\z)")
+        private val patHlsManifestUrl = "(.*?)^https(.*?)(?=\")".toPattern()
+        private val patHlsvp = "hlsManifestUrl%22%3A%22(.+?)(&|\\z)".toPattern()
 
-        private val patStatusOk = Pattern.compile("status=ok(&|,|\\z)")
-        private val patHlsItag = Pattern.compile("/itag/(\\d+?)/")
-        private val patItag = Pattern.compile("itag=([0-9]+?)(&|\\z)")
-        private val patEncSig = Pattern.compile("s=(.{10,}?)(\\\\\\\\u0026|\\z)")
-        private val patUrl = Pattern.compile("\"url\"\\s*:\\s*\"(.+?)\"")
+        private val patStatusOk = "status=ok(&|,|\\z)".toPattern()
+        private val patHlsItag = "/itag/(\\d+?)/".toPattern()
+        private val patItag = "itag=([0-9]+?)(&|\\z)".toPattern()
+        private val patEncSig = "s=(.{10,}?)(\\\\\\\\u0026|\\z)".toPattern()
+        private val patUrl = "\"url\"\\s*:\\s*\"(.+?)\"".toPattern()
 
-        private val patCipher = Pattern.compile("\"signatureCipher\"\\s*:\\s*\"(.+?)\"")
-        private val patCipherUrl = Pattern.compile("url=(.+?)(\\\\\\\\u0026|\\z)")
+        private val patCipher = "\"signatureCipher\"\\s*:\\s*\"(.+?)\"".toPattern()
+        private val patCipherUrl = "url=(.+?)(\\\\\\\\u0026|\\z)".toPattern()
 
         private val patVariableFunction =
-            Pattern.compile("([{; =])([a-zA-Z$][a-zA-Z0-9$]{0,2})\\.([a-zA-Z$][a-zA-Z0-9$]{0,2})\\(")
-        private val patFunction = Pattern.compile("([{; =])([a-zA-Z$\\_][a-zA-Z0-9$]{0,2})\\(")
+            "([{; =])([a-zA-Z$][a-zA-Z0-9$]{0,2})\\.([a-zA-Z$][a-zA-Z0-9$]{0,2})\\(".toPattern()
+        private val patFunction = "([{; =])([a-zA-Z$\\_][a-zA-Z0-9$]{0,2})\\(".toPattern()
 
-        private val patDecryptionJsFile = Pattern.compile("\\\\/s\\\\/player\\\\/([^\"]+?)\\.js")
-        private val patDecryptionJsFileWithoutSlash = Pattern.compile("/s/player/([^\"]+?).js")
+        private val patDecryptionJsFile = "\\\\/s\\\\/player\\\\/([^\"]+?)\\.js".toPattern()
+        private val patDecryptionJsFileWithoutSlash = "/s/player/([^\"]+?).js".toPattern()
         private val patSignatureDecFunction =
-            Pattern.compile("(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)")
+            "(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)".toPattern()
     }
 }
