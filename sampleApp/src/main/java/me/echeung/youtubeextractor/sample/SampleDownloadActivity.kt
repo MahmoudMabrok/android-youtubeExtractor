@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -18,19 +19,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.YtFile
+import me.echeung.youtubeextractor.sample.databinding.ActivitySampleDownloadBinding
 
 class SampleDownloadActivity : AppCompatActivity() {
 
-    private var mainLayout: LinearLayout? = null
-    private var mainProgressBar: ProgressBar? = null
+    private lateinit var binding: ActivitySampleDownloadBinding
 
     private var youtubeLink: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_sample_download)
-        mainLayout = findViewById(R.id.main_layout)
-        mainProgressBar = findViewById(R.id.prgrBar)
+        binding = ActivitySampleDownloadBinding.inflate(LayoutInflater.from(this))
+        setContentView(binding.root)
 
         // Check how it was started and if we can get the youtube link
         if (savedInstanceState == null && Intent.ACTION_SEND == intent.action && intent.type != null && "text/plain" == intent.type) {
@@ -57,7 +57,7 @@ class SampleDownloadActivity : AppCompatActivity() {
 
         GlobalScope.launch(Dispatchers.IO) {
             val result = extractor.extract(youtubeLink)
-            withContext(Dispatchers.Main) { mainProgressBar!!.isGone = true }
+            withContext(Dispatchers.Main) { binding.loading.isGone = true }
             if (result?.files == null) {
                 // Something went wrong we got no urls. Always check this.
                 withContext(Dispatchers.Main) { finish() }
@@ -97,7 +97,7 @@ class SampleDownloadActivity : AppCompatActivity() {
             downloadFromUrl(ytfile.url, videoTitle, filename)
             finish()
         }
-        mainLayout!!.addView(btn)
+        binding.mainLayout.addView(btn)
     }
 
     private fun downloadFromUrl(youtubeDlUrl: String, downloadTitle: String, fileName: String) {
