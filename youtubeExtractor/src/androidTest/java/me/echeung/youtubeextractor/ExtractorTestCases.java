@@ -1,4 +1,4 @@
-package at.huber.youtubeExtractor;
+package me.echeung.youtubeextractor;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -70,35 +70,30 @@ public class ExtractorTestCases {
     private void extractorTestDashManifest(final String youtubeLink)
             throws Throwable {
         final CountDownLatch signal = new CountDownLatch(1);
-        YouTubeExtractor.LOGGING = true;
 
         testUrl = null;
 
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-
-            @Override
-            public void run() {
-                final YouTubeExtractor ytEx = new YouTubeExtractor(InstrumentationRegistry.getContext()) {
-                    @Override
-                    public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
-                        assertNotNull(ytFiles);
-                        int numNotDash = 0;
-                        int itag;
-                        for (int i = 0; i < ytFiles.size(); i++) {
-                            itag = ytFiles.keyAt(i);
-                            if (ytFiles.get(itag).getFormat().isDashContainer()) {
-                                numNotDash = i;
-                                break;
-                            }
+        new Handler(Looper.getMainLooper()).post(() -> {
+            final YouTubeExtractor ytEx = new YouTubeExtractor(InstrumentationRegistry.getContext()) {
+                @Override
+                public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
+                    assertNotNull(ytFiles);
+                    int numNotDash = 0;
+                    int itag;
+                    for (int i = 0; i < ytFiles.size(); i++) {
+                        itag = ytFiles.keyAt(i);
+                        if (ytFiles.get(itag).getFormat().isDashContainer()) {
+                            numNotDash = i;
+                            break;
                         }
-                        itag = ytFiles.keyAt(new Random().nextInt(ytFiles.size() - numNotDash) + numNotDash);
-                        testUrl = ytFiles.get(itag).getUrl();
-                        Log.d(EXTRACTOR_TEST_TAG, "Testing itag: " + itag +", url:" + testUrl);
-                        signal.countDown();
                     }
-                };
-                ytEx.extract(youtubeLink, true, true);
-            }
+                    itag = ytFiles.keyAt(new Random().nextInt(ytFiles.size() - numNotDash) + numNotDash);
+                    testUrl = ytFiles.get(itag).getUrl();
+                    Log.d(EXTRACTOR_TEST_TAG, "Testing itag: " + itag +", url:" + testUrl);
+                    signal.countDown();
+                }
+            };
+            ytEx.extract(youtubeLink, true);
         });
 
         signal.await(10, TimeUnit.SECONDS);
@@ -118,33 +113,28 @@ public class ExtractorTestCases {
     private void extractorTest(final String youtubeLink, final VideoMeta expMeta)
             throws Throwable {
         final CountDownLatch signal = new CountDownLatch(1);
-        YouTubeExtractor.LOGGING = true;
 
         testUrl = null;
 
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-
-            @Override
-            public void run() {
-                final YouTubeExtractor ytEx = new YouTubeExtractor(getInstrumentation()
-                        .getTargetContext()) {
-                    @Override
-                    public void  onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
-                        assertEquals(expMeta.getVideoId(), videoMeta.getVideoId());
-                        assertEquals(expMeta.getTitle(),videoMeta.getTitle());
-                        assertEquals(expMeta.getAuthor(), videoMeta.getAuthor());
-                        assertEquals(expMeta.getChannelId(), videoMeta.getChannelId());
-                        assertEquals(expMeta.getVideoLength(), videoMeta.getVideoLength());
-                        assertNotSame(0, videoMeta.getViewCount());
-                        assertNotNull(ytFiles);
-                        int itag = ytFiles.keyAt(new Random().nextInt(ytFiles.size()));
-                        testUrl = ytFiles.get(itag).getUrl();
-                        Log.d(EXTRACTOR_TEST_TAG, "Testing itag: " + itag +", url:" + testUrl);
-                        signal.countDown();
-                    }
-                };
-                ytEx.extract(youtubeLink, false, true);
-            }
+        new Handler(Looper.getMainLooper()).post(() -> {
+            final YouTubeExtractor ytEx = new YouTubeExtractor(getInstrumentation()
+                    .getTargetContext()) {
+                @Override
+                public void  onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
+                    assertEquals(expMeta.getVideoId(), videoMeta.getVideoId());
+                    assertEquals(expMeta.getTitle(),videoMeta.getTitle());
+                    assertEquals(expMeta.getAuthor(), videoMeta.getAuthor());
+                    assertEquals(expMeta.getChannelId(), videoMeta.getChannelId());
+                    assertEquals(expMeta.getVideoLength(), videoMeta.getVideoLength());
+                    assertNotSame(0, videoMeta.getViewCount());
+                    assertNotNull(ytFiles);
+                    int itag = ytFiles.keyAt(new Random().nextInt(ytFiles.size()));
+                    testUrl = ytFiles.get(itag).getUrl();
+                    Log.d(EXTRACTOR_TEST_TAG, "Testing itag: " + itag +", url:" + testUrl);
+                    signal.countDown();
+                }
+            };
+            ytEx.extract(youtubeLink, true);
         });
 
         signal.await(10, TimeUnit.SECONDS);

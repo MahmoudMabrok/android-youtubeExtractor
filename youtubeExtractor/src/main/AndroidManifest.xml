@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="at.huber.youtubeExtractor">
+    package="me.echeung.youtubeextractor">
 
     <uses-permission android:name="android.permission.INTERNET" />
 

@@ -1,4 +1,4 @@
-package at.huber.sampleDownload
+package me.echeung.youtubeextractor.sample
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
@@ -13,9 +13,9 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import at.huber.youtubeExtractor.VideoMeta
-import at.huber.youtubeExtractor.YouTubeExtractor
-import at.huber.youtubeExtractor.YtFile
+import me.echeung.youtubeextractor.VideoMeta
+import me.echeung.youtubeextractor.YouTubeExtractor
+import me.echeung.youtubeextractor.YtFile
 
 class SampleDownloadActivity : AppCompatActivity() {
 
@@ -78,7 +78,7 @@ class SampleDownloadActivity : AppCompatActivity() {
                     i++
                 }
             }
-        }.extract(youtubeLink, true, false)
+        }.extract(youtubeLink, true)
     }
 
     private fun addButtonToMainLayout(videoTitle: String, ytfile: YtFile) {

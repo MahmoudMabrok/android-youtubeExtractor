@@ -1,4 +1,4 @@
-package at.huber.youtubeExtractor
+package me.echeung.youtubeextractor
 
 data class YtFile(
     /**

@@ -1,6 +1,6 @@
-package at.huber.youtubeExtractor.internal
+package me.echeung.youtubeextractor.internal
 
-import at.huber.youtubeExtractor.Format
+import me.echeung.youtubeextractor.Format
 
 /**
  * See:

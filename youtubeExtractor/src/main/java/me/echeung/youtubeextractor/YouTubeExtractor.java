@@ -1,4 +1,4 @@
-package at.huber.youtubeExtractor;
+package me.echeung.youtubeextractor;
 
 import android.content.Context;
 import android.os.AsyncTask;
@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import at.huber.youtubeExtractor.internal.FormatMap;
+import me.echeung.youtubeextractor.internal.FormatMap;
 
 public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArray<YtFile>> {
 

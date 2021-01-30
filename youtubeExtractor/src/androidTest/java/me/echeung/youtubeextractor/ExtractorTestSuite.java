@@ -1,4 +1,4 @@
-package at.huber.youtubeExtractor;
+package me.echeung.youtubeextractor;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
