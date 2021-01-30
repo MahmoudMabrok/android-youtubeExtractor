@@ -1,5 +1,6 @@
 package at.huber.sampleDownload;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Context;
@@ -15,11 +16,13 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import at.huber.youtubeExtractor.VideoMeta;
 import at.huber.youtubeExtractor.YouTubeExtractor;
 import at.huber.youtubeExtractor.YtFile;
 
-public class SampleDownloadActivity extends Activity {
+public class SampleDownloadActivity extends AppCompatActivity {
 
     private static String youtubeLink;
 
@@ -31,8 +34,8 @@ public class SampleDownloadActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_sample_download);
-        mainLayout = (LinearLayout) findViewById(R.id.main_layout);
-        mainProgressBar = (ProgressBar) findViewById(R.id.prgrBar);
+        mainLayout = findViewById(R.id.main_layout);
+        mainProgressBar = findViewById(R.id.prgrBar);
 
         // Check how it was started and if we can get the youtube link
         if (savedInstanceState == null && Intent.ACTION_SEND.equals(getIntent().getAction())
@@ -56,9 +59,9 @@ public class SampleDownloadActivity extends Activity {
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     private void getYoutubeDownloadUrl(String youtubeLink) {
         new YouTubeExtractor(this) {
-
             @Override
             public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta vMeta) {
                 mainProgressBar.setVisibility(View.GONE);
@@ -91,20 +94,16 @@ public class SampleDownloadActivity extends Activity {
         btnText += (ytfile.getFormat().isDashContainer()) ? " dash" : "";
         Button btn = new Button(this);
         btn.setText(btnText);
-        btn.setOnClickListener(new OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                String filename;
-                if (videoTitle.length() > 55) {
-                    filename = videoTitle.substring(0, 55) + "." + ytfile.getFormat().getExt();
-                } else {
-                    filename = videoTitle + "." + ytfile.getFormat().getExt();
-                }
-                filename = filename.replaceAll("[\\\\><\"|*?%:#/]", "");
-                downloadFromUrl(ytfile.getUrl(), videoTitle, filename);
-                finish();
+        btn.setOnClickListener(v -> {
+            String filename;
+            if (videoTitle.length() > 55) {
+                filename = videoTitle.substring(0, 55) + "." + ytfile.getFormat().getExt();
+            } else {
+                filename = videoTitle + "." + ytfile.getFormat().getExt();
             }
+            filename = filename.replaceAll("[\\\\><\"|*?%:#/]", "");
+            downloadFromUrl(ytfile.getUrl(), videoTitle, filename);
+            finish();
         });
         mainLayout.addView(btn);
     }

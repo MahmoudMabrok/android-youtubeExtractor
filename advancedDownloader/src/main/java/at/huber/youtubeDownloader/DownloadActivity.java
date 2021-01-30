@@ -1,6 +1,6 @@
 package at.huber.youtubeDownloader;
 
-import android.app.Activity;
+import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
@@ -10,25 +10,25 @@ import android.os.Environment;
 import android.text.method.LinkMovementMethod;
 import android.util.SparseArray;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import at.huber.youtubeExtractor.VideoMeta;
 import at.huber.youtubeExtractor.YouTubeExtractor;
 import at.huber.youtubeExtractor.YtFile;
 
-public class DownloadActivity extends Activity {
+public class DownloadActivity extends AppCompatActivity {
 
     private static final int ITAG_FOR_AUDIO = 140;
 
@@ -43,8 +43,8 @@ public class DownloadActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_sample_download);
-        mainLayout = (LinearLayout) findViewById(R.id.main_layout);
-        mainProgressBar = (ProgressBar) findViewById(R.id.prgrBar);
+        mainLayout = findViewById(R.id.main_layout);
+        mainProgressBar = findViewById(R.id.prgrBar);
 
         // Check how it was started and if we can get the youtube link
         if (savedInstanceState == null && Intent.ACTION_SEND.equals(getIntent().getAction())
@@ -68,9 +68,9 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     private void getYoutubeDownloadUrl(String youtubeLink) {
         new YouTubeExtractor(this) {
-
             @Override
             public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta vMeta) {
                 mainProgressBar.setVisibility(View.GONE);
@@ -90,12 +90,7 @@ public class DownloadActivity extends Activity {
                         addFormatToList(ytFile, ytFiles);
                     }
                 }
-                Collections.sort(formatsToShowList, new Comparator<YtFragmentedVideo>() {
-                    @Override
-                    public int compare(YtFragmentedVideo lhs, YtFragmentedVideo rhs) {
-                        return lhs.height - rhs.height;
-                    }
-                });
+                Collections.sort(formatsToShowList, (lhs, rhs) -> lhs.height - rhs.height);
                 for (YtFragmentedVideo files : formatsToShowList) {
                     addButtonToMainLayout(vMeta.getTitle(), files);
                 }
@@ -139,34 +134,30 @@ public class DownloadActivity extends Activity {
                     ytFrVideo.height + "p";
         Button btn = new Button(this);
         btn.setText(btnText);
-        btn.setOnClickListener(new OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                String filename;
-                if (videoTitle.length() > 55) {
-                    filename = videoTitle.substring(0, 55);
-                } else {
-                    filename = videoTitle;
-                }
-                filename = filename.replaceAll("[\\\\><\"|*?%:#/]", "");
-                filename += (ytFrVideo.height == -1) ? "" : "-" + ytFrVideo.height + "p";
-                String downloadIds = "";
-                boolean hideAudioDownloadNotification = false;
-                if (ytFrVideo.videoFile != null) {
-                    downloadIds += downloadFromUrl(ytFrVideo.videoFile.getUrl(), videoTitle,
-                            filename + "." + ytFrVideo.videoFile.getFormat().getExt(), false);
-                    downloadIds += "-";
-                    hideAudioDownloadNotification = true;
-                }
-                if (ytFrVideo.audioFile != null) {
-                    downloadIds += downloadFromUrl(ytFrVideo.audioFile.getUrl(), videoTitle,
-                            filename + "." + ytFrVideo.audioFile.getFormat().getExt(), hideAudioDownloadNotification);
-                }
-                if (ytFrVideo.audioFile != null)
-                    cacheDownloadIds(downloadIds);
-                finish();
+        btn.setOnClickListener(v -> {
+            String filename;
+            if (videoTitle.length() > 55) {
+                filename = videoTitle.substring(0, 55);
+            } else {
+                filename = videoTitle;
             }
+            filename = filename.replaceAll("[\\\\><\"|*?%:#/]", "");
+            filename += (ytFrVideo.height == -1) ? "" : "-" + ytFrVideo.height + "p";
+            String downloadIds = "";
+            boolean hideAudioDownloadNotification = false;
+            if (ytFrVideo.videoFile != null) {
+                downloadIds += downloadFromUrl(ytFrVideo.videoFile.getUrl(), videoTitle,
+                        filename + "." + ytFrVideo.videoFile.getFormat().getExt(), false);
+                downloadIds += "-";
+                hideAudioDownloadNotification = true;
+            }
+            if (ytFrVideo.audioFile != null) {
+                downloadIds += downloadFromUrl(ytFrVideo.audioFile.getUrl(), videoTitle,
+                        filename + "." + ytFrVideo.audioFile.getFormat().getExt(), hideAudioDownloadNotification);
+            }
+            if (ytFrVideo.audioFile != null)
+                cacheDownloadIds(downloadIds);
+            finish();
         });
         mainLayout.addView(btn);
     }
