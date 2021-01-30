@@ -7,6 +7,11 @@ import android.util.Log
 import android.util.SparseArray
 import com.evgenii.jsevaluator.JsEvaluator
 import com.evgenii.jsevaluator.interfaces.JsCallback
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import me.echeung.youtubeextractor.Video
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.internal.http.HttpClient
@@ -23,10 +28,8 @@ import java.lang.ref.WeakReference
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
-import java.util.regex.Matcher
 
 class Extractor(private val refContext: WeakReference<Context>, private val cacheDirPath: String) {
 
@@ -45,178 +48,178 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
             return null
         }
 
-        val videoInfo = getVideoInfo()
-        val metadata = VideoMetadataParser().parseVideoMetadata(videoId!!, videoInfo)
-        val videos = if (metadata.isLiveStream) {
-            getLiveStreamVideos(videoInfo)
+        val streamInfo = getStreamInfo()
+        val metadata = VideoMetadataParser().parseVideoMetadata(videoId!!, streamInfo)
+        val videos = if (metadata.isLive) {
+            getLiveStreamVideos(streamInfo)
         } else {
-            getStreamVideos(videoInfo)
+            getStreamVideos(streamInfo)
         }
 
         return YouTubeExtractor.Result(videos, metadata)
     }
 
-    private fun getStreamVideos(videoInfo: String): SparseArray<Video>? {
-        var streamMap = videoInfo
-        var mat: Matcher
-        val curJsFileName: String
-        var encSignatures: SparseArray<String?>? = null
-
-        // "use_cipher_signature" disappeared, we check whether at least one ciphered signature
-        // exists int the stream_map.
-        var sigEnc = true
-        var statusFail = false
-        if (!patCipher.matcher(streamMap).find()) {
-            sigEnc = false
-            if (!patStatusOk.matcher(streamMap).find()) {
-                statusFail = true
-            }
-        }
-
-        // Some videos are using a ciphered signature we need to get the
-        // deciphering js-file from the youtubepage.
-        if (sigEnc || statusFail) {
-            // Get the video directly from the youtubepage
-            if (decipherJsFileName == null || decipherFunctions == null || decipherFunctionName == null) {
-                readDecipherFunctFromCache()
-            }
-            val sbStreamMap = StringBuilder()
-            http.get("https://youtube.com/watch?v=$videoId") { line: String ->
-                sbStreamMap.append(line.replace("\\\"", "\""))
-            }
-            streamMap = sbStreamMap.toString()
-            encSignatures = SparseArray()
-            mat = patDecryptionJsFile.matcher(streamMap)
-            if (!mat.find()) mat = patDecryptionJsFileWithoutSlash.matcher(streamMap)
-            if (mat.find()) {
-                curJsFileName = mat.group(0).replace("\\/", "/")
-                if (decipherJsFileName == null || decipherJsFileName != curJsFileName) {
-                    decipherFunctions = null
-                    decipherFunctionName = null
-                }
-                decipherJsFileName = curJsFileName
-            }
-        }
-        val ytFiles = SparseArray<Video>()
-        mat = if (sigEnc) {
-            patCipher.matcher(streamMap)
-        } else {
-            patUrl.matcher(streamMap)
-        }
-        while (mat.find()) {
-            var sig: String? = null
-            var url: String
-            if (sigEnc) {
-                val cipher = mat.group(1)
-                var mat2 = patCipherUrl.matcher(cipher)
-                if (mat2.find()) {
-                    url = URLDecoder.decode(mat2.group(1), "UTF-8")
-                    mat2 = patEncSig.matcher(cipher)
-                    if (mat2.find()) {
-                        sig = URLDecoder.decode(mat2.group(1), "UTF-8")
-                        // fix issue #165
-                        sig = sig.replace("\\u0026", "&")
-                        sig = sig.split("&").toTypedArray()[0]
-                    } else {
-                        continue
-                    }
-                } else {
-                    continue
-                }
-            } else {
-                url = mat.group(1)
-            }
-            val mat2 = patItag.matcher(url)
-            if (!mat2.find()) continue
-            val itag = mat2.group(1).toInt()
-            if (FORMAT_MAP[itag] == null) {
-                Log.d(LOG_TAG, "Itag not in list:$itag")
-                continue
-            }
-
-            // Unsupported
-            if (url.contains("&source=yt_otf&")) continue
-            Log.d(LOG_TAG, "Itag found:$itag")
-            if (sig != null) {
-                encSignatures!!.append(itag, sig)
-            }
-            val newVideo = Video(FORMAT_MAP[itag]!!, url)
-            ytFiles.put(itag, newVideo)
-        }
-        if (encSignatures != null) {
-            Log.d(
-                LOG_TAG,
-                "Decipher signatures: " + encSignatures.size() + ", videos: " + ytFiles.size()
-            )
-            decipheredSignature = null
-            if (decipherSignature(encSignatures)) {
-                lock.lock()
-                try {
-                    jsExecuting.await(7, TimeUnit.SECONDS)
-                } finally {
-                    lock.unlock()
-                }
-            }
-            val signature: String? = decipheredSignature
-            if (signature == null) {
-                return null
-            } else {
-                val sigs = signature.split("\n").toTypedArray()
-                var i = 0
-                while (i < encSignatures.size() && i < sigs.size) {
-                    val key = encSignatures.keyAt(i)
-                    var url = ytFiles[key].url
-                    url += "&sig=" + sigs[i]
-                    ytFiles.put(key, Video(FORMAT_MAP[key]!!, url))
-                    i++
-                }
-            }
-        }
-        if (ytFiles.size() == 0) {
-            Log.d(LOG_TAG, streamMap)
-            return null
-        }
-        return ytFiles
-    }
-
-    private fun getLiveStreamVideos(streamMap: String): SparseArray<Video>? {
-        var mat = patHlsvp.matcher(streamMap)
-        if (mat.find()) {
-            val hlsvp = URLDecoder.decode(mat.group(1), "UTF-8")
-            val ytFiles: SparseArray<Video> = SparseArray()
-            mat = patHlsManifestUrl.matcher(hlsvp)
-            if (mat.find()) {
-                http.get(URLDecoder.decode(mat.group(), "UTF-8")) {
-                    if (it.startsWith("https://") || it.startsWith("http://")) {
-                        mat = patHlsItag.matcher(it)
-                        if (mat.find()) {
-                            val itag: Int = mat.group(1).toInt()
-                            val newFile = Video(FORMAT_MAP[itag]!!, it)
-                            ytFiles.put(itag, newFile)
-                        }
-                    }
-                }
-                if (ytFiles.size() == 0) {
-                    Log.d(LOG_TAG, streamMap)
-                    return null
-                }
-                return ytFiles
-            }
-            return null
-        }
+    private fun getStreamVideos(streamInfo: JsonObject): SparseArray<Video>? {
+        // var mat: Matcher
+        // val curJsFileName: String
+        // var encSignatures: SparseArray<String?>? = null
+        //
+        // // "use_cipher_signature" disappeared, we check whether at least one ciphered signature
+        // // exists int the stream_map.
+        // var sigEnc = true
+        // var statusFail = false
+        // if (!patCipher.matcher(streamMap).find()) {
+        //     sigEnc = false
+        //     if (!patStatusOk.matcher(streamMap).find()) {
+        //         statusFail = true
+        //     }
+        // }
+        //
+        // // Some videos are using a ciphered signature we need to get the
+        // // deciphering js-file from the youtubepage.
+        // if (sigEnc || statusFail) {
+        //     // Get the video directly from the youtubepage
+        //     if (decipherJsFileName == null || decipherFunctions == null || decipherFunctionName == null) {
+        //         readDecipherFunctFromCache()
+        //     }
+        //     val sbStreamMap = StringBuilder()
+        //     http.get("https://youtube.com/watch?v=$videoId") { line: String ->
+        //         sbStreamMap.append(line.replace("\\\"", "\""))
+        //     }
+        //     streamMap = sbStreamMap.toString()
+        //     encSignatures = SparseArray()
+        //     mat = patDecryptionJsFile.matcher(streamMap)
+        //     if (!mat.find()) mat = patDecryptionJsFileWithoutSlash.matcher(streamMap)
+        //     if (mat.find()) {
+        //         curJsFileName = mat.group(0).replace("\\/", "/")
+        //         if (decipherJsFileName == null || decipherJsFileName != curJsFileName) {
+        //             decipherFunctions = null
+        //             decipherFunctionName = null
+        //         }
+        //         decipherJsFileName = curJsFileName
+        //     }
+        // }
+        // val ytFiles = SparseArray<Video>()
+        // mat = if (sigEnc) {
+        //     patCipher.matcher(streamMap)
+        // } else {
+        //     patUrl.matcher(streamMap)
+        // }
+        // while (mat.find()) {
+        //     var sig: String? = null
+        //     var url: String
+        //     if (sigEnc) {
+        //         val cipher = mat.group(1)
+        //         var mat2 = patCipherUrl.matcher(cipher)
+        //         if (mat2.find()) {
+        //             url = URLDecoder.decode(mat2.group(1), "UTF-8")
+        //             mat2 = patEncSig.matcher(cipher)
+        //             if (mat2.find()) {
+        //                 sig = URLDecoder.decode(mat2.group(1), "UTF-8")
+        //                 // fix issue #165
+        //                 sig = sig.replace("\\u0026", "&")
+        //                 sig = sig.split("&").toTypedArray()[0]
+        //             } else {
+        //                 continue
+        //             }
+        //         } else {
+        //             continue
+        //         }
+        //     } else {
+        //         url = mat.group(1)
+        //     }
+        //     val mat2 = patItag.matcher(url)
+        //     if (!mat2.find()) continue
+        //     val itag = mat2.group(1).toInt()
+        //     if (FORMAT_MAP[itag] == null) {
+        //         Log.d(LOG_TAG, "Itag not in list:$itag")
+        //         continue
+        //     }
+        //
+        //     // Unsupported
+        //     if (url.contains("&source=yt_otf&")) continue
+        //     Log.d(LOG_TAG, "Itag found:$itag")
+        //     if (sig != null) {
+        //         encSignatures!!.append(itag, sig)
+        //     }
+        //     val newVideo = Video(FORMAT_MAP[itag]!!, url)
+        //     ytFiles.put(itag, newVideo)
+        // }
+        // if (encSignatures != null) {
+        //     Log.d(
+        //         LOG_TAG,
+        //         "Decipher signatures: " + encSignatures.size() + ", videos: " + ytFiles.size()
+        //     )
+        //     decipheredSignature = null
+        //     if (decipherSignature(encSignatures)) {
+        //         lock.lock()
+        //         try {
+        //             jsExecuting.await(7, TimeUnit.SECONDS)
+        //         } finally {
+        //             lock.unlock()
+        //         }
+        //     }
+        //     val signature: String? = decipheredSignature
+        //     if (signature == null) {
+        //         return null
+        //     } else {
+        //         val sigs = signature.split("\n").toTypedArray()
+        //         var i = 0
+        //         while (i < encSignatures.size() && i < sigs.size) {
+        //             val key = encSignatures.keyAt(i)
+        //             var url = ytFiles[key].url
+        //             url += "&sig=" + sigs[i]
+        //             ytFiles.put(key, Video(FORMAT_MAP[key]!!, url))
+        //             i++
+        //         }
+        //     }
+        // }
+        // if (ytFiles.size() == 0) {
+        //     return null
+        // }
+        // return ytFiles
         return null
     }
 
-    private fun getVideoInfo(): String{
-        val ytInfoUrl = ("https://www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
-            + URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8"))
-        var streamMap = ""
+    private fun getLiveStreamVideos(streamInfo: JsonObject): SparseArray<Video>? {
+        val streamingData = streamInfo["streamingData"]!!.jsonObject
+        val hlsManifestUrl = streamingData["hlsManifestUrl"]!!.jsonPrimitive.content
 
-        http.get(ytInfoUrl) { streamMap = it }
-        streamMap = URLDecoder.decode(streamMap, "UTF-8")
-        streamMap = streamMap.replace("\\u0026", "&")
+        val videos: SparseArray<Video> = SparseArray()
 
-        return streamMap
+        http.get(hlsManifestUrl) {
+            if (it.startsWith("http")) {
+                val matcher = patHlsItag.matcher(it)
+                if (matcher.find()) {
+                    val itag: Int = matcher.group(1).toInt()
+                    val newFile = Video(FORMAT_MAP[itag]!!, it)
+                    videos.put(itag, newFile)
+                }
+            }
+        }
+
+        if (videos.size() == 0) {
+            return null
+        }
+
+        return videos
+    }
+
+    private fun getStreamInfo(): JsonObject {
+        val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
+            URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8")
+
+        // This is basically a URL query parameter list (i.e. foo=bar&baz=baq&...)
+        var data = ""
+        http.get(ytInfoUrl) { data = it }
+        data = URLDecoder.decode(data, "UTF-8")
+        data = data.replace("\\u0026", "&")
+
+        // Extract the relevant JSON
+        val matcher = "player_response=(\\{.*\\})".toPattern().matcher(data)
+        matcher.find()
+        val jsonStr = matcher.group(1)
+        return Json.decodeFromString(jsonStr)
     }
 
     private fun decipherSignature(encSignatures: SparseArray<String?>): Boolean {

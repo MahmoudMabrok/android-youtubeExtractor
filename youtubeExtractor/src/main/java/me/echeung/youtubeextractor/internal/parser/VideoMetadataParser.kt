@@ -1,71 +1,24 @@
 package me.echeung.youtubeextractor.internal.parser
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import me.echeung.youtubeextractor.Metadata
 
 class VideoMetadataParser {
-    fun parseVideoMetadata(videoId: String, videoInfo: String): Metadata {
-        var isLiveStream = false
-        var title = ""
-        var author = ""
-        var channelId = ""
-        var shortDescription = ""
-        var viewCount: Long = 0
-        var duration: Long = 0
-
-        var mat = patTitle.matcher(videoInfo)
-        if (mat.find()) {
-            title = mat.group(1)
-        }
-
-        mat = patHlsvp.matcher(videoInfo)
-        if (mat.find()) {
-            isLiveStream = true
-        }
-
-        mat = patAuthor.matcher(videoInfo)
-        if (mat.find()) {
-            author = mat.group(1)
-        }
-
-        mat = patChannelId.matcher(videoInfo)
-        if (mat.find()) {
-            channelId = mat.group(1)
-        }
-
-        mat = patShortDescript.matcher(videoInfo)
-        if (mat.find()) {
-            shortDescription = mat.group(1)
-        }
-
-        mat = patLength.matcher(videoInfo)
-        if (mat.find()) {
-            duration = mat.group(1).toLong()
-        }
-
-        mat = patViewCount.matcher(videoInfo)
-        if (mat.find()) {
-            viewCount = mat.group(1).toLong()
-        }
+    fun parseVideoMetadata(videoId: String, streamInfo: JsonObject): Metadata {
+        val videoDetails = streamInfo["videoDetails"]!!.jsonObject
 
         return Metadata(
             videoId,
-            title,
-            author,
-            channelId,
-            duration,
-            viewCount,
-            isLiveStream,
-            shortDescription
+            title = videoDetails["title"]!!.jsonPrimitive.content,
+            author = videoDetails["author"]!!.jsonPrimitive.content,
+            channelId = videoDetails["channelId"]!!.jsonPrimitive.content,
+            duration = videoDetails["lengthSeconds"]!!.jsonPrimitive.long,
+            viewCount = videoDetails["viewCount"]!!.jsonPrimitive.long,
+            isLive = videoDetails["isPostLiveDvr"]?.jsonPrimitive?.content != "true",
+            shortDescription = videoDetails["shortDescription"]!!.jsonPrimitive.content
         )
-    }
-
-    companion object {
-        private val patTitle = "\"title\"\\s*:\\s*\"(.*?)\"".toPattern()
-        private val patAuthor = "\"author\"\\s*:\\s*\"(.+?)\"".toPattern()
-        private val patChannelId = "\"channelId\"\\s*:\\s*\"(.+?)\"".toPattern()
-        private val patLength = "\"lengthSeconds\"\\s*:\\s*\"(\\d+?)\"".toPattern()
-        private val patViewCount = "\"viewCount\"\\s*:\\s*\"(\\d+?)\"".toPattern()
-        private val patShortDescript = "\"shortDescription\"\\s*:\\s*\"(.+?)\"".toPattern()
-        private val patHlsvp = "hlsvp=(.+?)(&|\\z)".toPattern()
     }
 }

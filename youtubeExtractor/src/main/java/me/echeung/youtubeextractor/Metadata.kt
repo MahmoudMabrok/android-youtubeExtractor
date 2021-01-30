@@ -10,7 +10,7 @@ data class Metadata(
      */
     val duration: Long,
     val viewCount: Long,
-    val isLiveStream: Boolean,
+    val isLive: Boolean,
     val shortDescription: String
 ) {
 
