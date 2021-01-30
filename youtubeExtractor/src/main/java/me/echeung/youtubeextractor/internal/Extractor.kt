@@ -17,7 +17,6 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.lang.ref.WeakReference
@@ -25,7 +24,6 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Matcher
@@ -42,27 +40,26 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
     private val lock: Lock = ReentrantLock()
     private val jsExecuting = lock.newCondition()
 
-    fun getYtFiles(urlOrId: String?): YouTubeExtractor.Result? {
+    fun extract(urlOrId: String?): YouTubeExtractor.Result? {
         videoId = VideoIdParser().getVideoId(urlOrId)
         if (videoId == null) {
             Log.e(LOG_TAG, "Invalid YouTube link format: $urlOrId")
             return null
         }
-        val streamMap = streamMap
-        val metadata = VideoMetadataParser().parseVideoMetadata(
-            videoId!!, streamMap
-        )
-        val videos: SparseArray<Video>?
-        videos = if (metadata.isLiveStream) {
-            getLiveStreamVideos(streamMap)
+
+        val videoInfo = getVideoInfo()
+        val metadata = VideoMetadataParser().parseVideoMetadata(videoId!!, videoInfo)
+        val videos = if (metadata.isLiveStream) {
+            getLiveStreamVideos(videoInfo)
         } else {
-            getStreamVideos(streamMap)
+            getStreamVideos(videoInfo)
         }
+
         return YouTubeExtractor.Result(videos, metadata)
     }
 
-    private fun getStreamVideos(streamMap: String): SparseArray<Video>? {
-        var streamMap = streamMap
+    private fun getStreamVideos(videoInfo: String): SparseArray<Video>? {
+        var streamMap = videoInfo
         var mat: Matcher
         val curJsFileName: String
         var encSignatures: SparseArray<String?>? = null
@@ -189,41 +186,44 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
     }
 
     private fun getLiveStreamVideos(streamMap: String): SparseArray<Video>? {
-        val mat = patHlsvp.matcher(streamMap)
+        var mat = patHlsvp.matcher(streamMap)
         if (mat.find()) {
             val hlsvp = URLDecoder.decode(mat.group(1), "UTF-8")
-            val ytFiles = SparseArray<Video>()
-            http.get(hlsvp) { line: String ->
-                if (line.startsWith("https://") || line.startsWith("http://")) {
-                    val matcher = patHlsItag.matcher(line)
-                    if (matcher.find()) {
-                        val itag = matcher.group(1).toInt()
-                        val newFile = Video(
-                            formatMap.FORMAT_MAP[itag]!!, line
-                        )
-                        ytFiles.put(itag, newFile)
+            val ytFiles: SparseArray<Video> = SparseArray()
+            mat = patHlsManifestUrl.matcher(hlsvp)
+            if (mat.find()) {
+                http.get(URLDecoder.decode(mat.group(), "UTF-8")) {
+                    if (it.startsWith("https://") || it.startsWith("http://")) {
+                        mat = patHlsItag.matcher(it)
+                        if (mat.find()) {
+                            val itag: Int = mat.group(1).toInt()
+                            val newFile = Video(formatMap.FORMAT_MAP[itag]!!, it)
+                            ytFiles.put(itag, newFile)
+                        }
                     }
                 }
+                if (ytFiles.size() == 0) {
+                    Log.d(LOG_TAG, streamMap)
+                    return null
+                }
+                return ytFiles
             }
-            if (ytFiles.size() == 0) {
-                Log.d(LOG_TAG, streamMap)
-                return null
-            }
-            return ytFiles
+            return null
         }
         return null
     }
 
-    @get:Throws(IOException::class)
-    private val streamMap: String
-        get() {
-            val ytInfoUrl = ("https://www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
-                + URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8"))
-            val streamMap = AtomicReference("")
-            http.get(ytInfoUrl) { streamMap.set(it) }
-            streamMap.set(URLDecoder.decode(streamMap.get(), "UTF-8"))
-            return streamMap.get().replace("\\u0026", "&")
-        }
+    private fun getVideoInfo(): String{
+        val ytInfoUrl = ("https://www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
+            + URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8"))
+        var streamMap = ""
+
+        http.get(ytInfoUrl) { streamMap = it }
+        streamMap = URLDecoder.decode(streamMap, "UTF-8")
+        streamMap = streamMap.replace("\\u0026", "&")
+
+        return streamMap
+    }
 
     private fun decipherSignature(encSignatures: SparseArray<String?>): Boolean {
         // Assume the functions don't change that much
@@ -408,20 +408,27 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
     companion object {
         private const val LOG_TAG = "YouTubeExtractor"
         private const val CACHE_FILE_NAME = "decipher_js_funct"
+
         private var decipherJsFileName: String? = null
         private var decipherFunctions: String? = null
         private var decipherFunctionName: String? = null
+
+        private val patHlsManifestUrl = Pattern.compile("(.*?)^https(.*?)(?=\")")
+        private val patHlsvp = Pattern.compile("hlsManifestUrl%22%3A%22(.+?)(&|\\z)")
+
         private val patStatusOk = Pattern.compile("status=ok(&|,|\\z)")
-        private val patHlsvp = Pattern.compile("hlsvp=(.+?)(&|\\z)")
         private val patHlsItag = Pattern.compile("/itag/(\\d+?)/")
         private val patItag = Pattern.compile("itag=([0-9]+?)(&|\\z)")
         private val patEncSig = Pattern.compile("s=(.{10,}?)(\\\\\\\\u0026|\\z)")
         private val patUrl = Pattern.compile("\"url\"\\s*:\\s*\"(.+?)\"")
+
         private val patCipher = Pattern.compile("\"signatureCipher\"\\s*:\\s*\"(.+?)\"")
         private val patCipherUrl = Pattern.compile("url=(.+?)(\\\\\\\\u0026|\\z)")
+
         private val patVariableFunction =
             Pattern.compile("([{; =])([a-zA-Z$][a-zA-Z0-9$]{0,2})\\.([a-zA-Z$][a-zA-Z0-9$]{0,2})\\(")
         private val patFunction = Pattern.compile("([{; =])([a-zA-Z$\\_][a-zA-Z0-9$]{0,2})\\(")
+
         private val patDecryptionJsFile = Pattern.compile("\\\\/s\\\\/player\\\\/([^\"]+?)\\.js")
         private val patDecryptionJsFileWithoutSlash = Pattern.compile("/s/player/([^\"]+?).js")
         private val patSignatureDecFunction =

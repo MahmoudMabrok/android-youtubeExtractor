@@ -24,7 +24,7 @@ class YouTubeExtractor(context: Context) {
      */
     suspend fun extract(urlOrId: String?): Result? {
         return withContext(Dispatchers.IO) {
-            extractor.getYtFiles(urlOrId)
+            extractor.extract(urlOrId)
         }
     }
 
