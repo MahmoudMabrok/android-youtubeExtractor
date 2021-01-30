@@ -17,7 +17,8 @@ class VideoMetadataParser {
             channelId = videoDetails["channelId"]!!.jsonPrimitive.content,
             duration = videoDetails["lengthSeconds"]!!.jsonPrimitive.long,
             viewCount = videoDetails["viewCount"]!!.jsonPrimitive.long,
-            isLive = videoDetails["isPostLiveDvr"]?.jsonPrimitive?.content != "true",
+            isLive = videoDetails["lengthSeconds"]!!.jsonPrimitive.long == 0L,
+            isLiveContent = videoDetails["isLiveContent"]!!.jsonPrimitive.content == "true",
             shortDescription = videoDetails["shortDescription"]!!.jsonPrimitive.content
         )
     }

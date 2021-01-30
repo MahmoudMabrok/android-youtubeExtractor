@@ -11,6 +11,7 @@ data class Metadata(
     val duration: Long,
     val viewCount: Long,
     val isLive: Boolean,
+    val isLiveContent: Boolean,
     val shortDescription: String
 ) {
 

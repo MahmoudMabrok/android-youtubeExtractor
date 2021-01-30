@@ -51,10 +51,8 @@ class SampleDownloadActivity : AppCompatActivity() {
     }
 
     private fun getYoutubeDownloadUrl(youtubeLink: String?) {
-        val extractor = YouTubeExtractor(this)
-
         GlobalScope.launch(Dispatchers.IO) {
-            val result = extractor.extract(youtubeLink)
+            val result = YouTubeExtractor().extract(youtubeLink)
             withContext(Dispatchers.Main) { binding.loading.isGone = true }
             if (result?.videos == null) {
                 // Something went wrong we got no urls. Always check this.
