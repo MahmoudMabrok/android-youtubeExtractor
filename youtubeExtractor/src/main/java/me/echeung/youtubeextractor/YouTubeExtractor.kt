@@ -29,7 +29,7 @@ class YouTubeExtractor(context: Context) {
     }
 
     class Result(
-        val files: SparseArray<YtFile?>?,
-        val videoMetadata: VideoMetadata?
+        val videos: SparseArray<Video>?,
+        val metadata: Metadata
     )
 }

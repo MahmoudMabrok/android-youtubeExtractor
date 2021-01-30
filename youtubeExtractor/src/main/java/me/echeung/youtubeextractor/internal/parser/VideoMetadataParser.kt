@@ -1,9 +1,9 @@
-package me.echeung.youtubeextractor.internal
+package me.echeung.youtubeextractor.internal.parser
 
-import me.echeung.youtubeextractor.VideoMetadata
+import me.echeung.youtubeextractor.Metadata
 
 class VideoMetadataParser {
-    fun parseVideoMetadata(videoId: String, videoInfo: String): VideoMetadata {
+    fun parseVideoMetadata(videoId: String, videoInfo: String): Metadata {
         var isLiveStream = false
         var title = ""
         var author = ""
@@ -47,7 +47,7 @@ class VideoMetadataParser {
             viewCount = mat.group(1).toLong()
         }
 
-        return VideoMetadata(
+        return Metadata(
             videoId,
             title,
             author,

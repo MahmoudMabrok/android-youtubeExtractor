@@ -1,6 +1,6 @@
-package me.echeung.youtubeextractor.internal
+package me.echeung.youtubeextractor.internal.parser
 
-class VideoIdExtractor {
+class VideoIdParser {
     fun getVideoId(url: String?): String? {
         if (url == null) {
             return null

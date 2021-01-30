@@ -8,8 +8,6 @@ import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
@@ -18,7 +16,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.echeung.youtubeextractor.YouTubeExtractor
-import me.echeung.youtubeextractor.YtFile
+import me.echeung.youtubeextractor.Video
 import me.echeung.youtubeextractor.sample.databinding.ActivitySampleDownloadBinding
 
 class SampleDownloadActivity : AppCompatActivity() {
@@ -58,7 +56,7 @@ class SampleDownloadActivity : AppCompatActivity() {
         GlobalScope.launch(Dispatchers.IO) {
             val result = extractor.extract(youtubeLink)
             withContext(Dispatchers.Main) { binding.loading.isGone = true }
-            if (result?.files == null) {
+            if (result?.videos == null) {
                 // Something went wrong we got no urls. Always check this.
                 withContext(Dispatchers.Main) { finish() }
                 return@launch
@@ -66,21 +64,21 @@ class SampleDownloadActivity : AppCompatActivity() {
             // Iterate over itags
             var i = 0
             var itag: Int
-            while (i < result.files!!.size()) {
-                itag = result.files!!.keyAt(i)
+            while (i < result.videos!!.size()) {
+                itag = result.videos!!.keyAt(i)
                 // Represents one file with its url and meta data
-                val files = result.files!![itag]
+                val files = result.videos!![itag]
 
                 // Just add videos in a decent format => height -1 = audio
                 if (files!!.format.height == -1 || files.format.height >= 360) {
-                    withContext(Dispatchers.Main) { addButtonToMainLayout(result.videoMetadata!!.title, files) }
+                    withContext(Dispatchers.Main) { addButtonToMainLayout(result.metadata!!.title, files) }
                 }
                 i++
             }
         }
     }
 
-    private fun addButtonToMainLayout(videoTitle: String, ytfile: YtFile) {
+    private fun addButtonToMainLayout(videoTitle: String, ytfile: Video) {
         // Display some buttons and let the user choose the format
         var btnText = if (ytfile.format.height == -1) "Audio " +
             ytfile.format.audioBitrate + " kbit/s" else ytfile.format.height.toString() + "p"

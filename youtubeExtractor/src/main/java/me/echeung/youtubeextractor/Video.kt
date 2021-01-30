@@ -1,6 +1,6 @@
 package me.echeung.youtubeextractor
 
-data class YtFile(
+data class Video(
     /**
      * Format data for the specific file.
      */

@@ -37,11 +37,11 @@ val youtubeLink = "http://youtube.com/watch?v=xxxx"
 
 scope.launch {
     val result = YouTubeExtractor(context).extract(youtubeLink)
-    result?.files?.let {
+    result?.videos?.let {
         val downloadUrl = it[22].url
         // ...
     }
-    result?.videoMetadata?.let {
+    result?.metadata?.let {
         // ...
     }
 }
