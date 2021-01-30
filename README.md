@@ -10,9 +10,8 @@ This fork features:
 ---
 
 These are the urls to the YouTube video or audio files, so you can stream or download them.
-It features an age verification circumvention and a signature deciphering method (mainly for vevo videos).
 
-* Dependency: [js-evaluator-for-android](https://github.com/evgenyneu/js-evaluator-for-android)
+Requires Android **5.0** (API version 21) or higher.
 
 ## Gradle
 
@@ -47,13 +46,9 @@ scope.launch {
 }
 ```
 
-The files SparseArray is a map of available media files for one YouTube video, accessible by their itag
-value. For further infos about itags and their associated formats refer to: [Wikipedia - YouTube Quality and formats](http://en.wikipedia.org/wiki/YouTube#Quality_and_formats).
+`videos` is a map of available media files for one YouTube video, accessible by their itag value.
+For further info about itags and their associated formats refer to: [Wikipedia - YouTube Quality and formats](http://en.wikipedia.org/wiki/YouTube#Quality_and_formats).
 
-## Requirements
-
-Android **5.0** (API version 21) and up for Webview Javascript execution see: [js-evaluator-for-android](https://github.com/evgenyneu/js-evaluator-for-android).
-Not signature enciphered Videos may work on lower Android versions (untested).
 
 ## Limitations
 
