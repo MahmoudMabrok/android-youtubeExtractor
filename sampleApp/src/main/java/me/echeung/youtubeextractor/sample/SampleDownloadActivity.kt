@@ -1,19 +1,21 @@
 package me.echeung.youtubeextractor.sample
 
-import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.util.SparseArray
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import me.echeung.youtubeextractor.VideoMeta
+import androidx.core.view.isGone
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.YtFile
 
@@ -50,35 +52,32 @@ class SampleDownloadActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("StaticFieldLeak")
     private fun getYoutubeDownloadUrl(youtubeLink: String?) {
-        object : YouTubeExtractor(this) {
-            public override fun onExtractionComplete(
-                ytFiles: SparseArray<YtFile>,
-                vMeta: VideoMeta
-            ) {
-                mainProgressBar!!.visibility = View.GONE
-                if (ytFiles == null) {
-                    // Something went wrong we got no urls. Always check this.
-                    finish()
-                    return
-                }
-                // Iterate over itags
-                var i = 0
-                var itag: Int
-                while (i < ytFiles.size()) {
-                    itag = ytFiles.keyAt(i)
-                    // ytFile represents one file with its url and meta data
-                    val ytFile = ytFiles[itag]
+        val extractor = YouTubeExtractor(this)
 
-                    // Just add videos in a decent format => height -1 = audio
-                    if (ytFile.format.height == -1 || ytFile.format.height >= 360) {
-                        addButtonToMainLayout(vMeta.title, ytFile)
-                    }
-                    i++
-                }
+        GlobalScope.launch(Dispatchers.IO) {
+            val result = extractor.extract(youtubeLink)
+            withContext(Dispatchers.Main) { mainProgressBar!!.isGone = true }
+            if (result?.files == null) {
+                // Something went wrong we got no urls. Always check this.
+                withContext(Dispatchers.Main) { finish() }
+                return@launch
             }
-        }.extract(youtubeLink)
+            // Iterate over itags
+            var i = 0
+            var itag: Int
+            while (i < result.files!!.size()) {
+                itag = result.files!!.keyAt(i)
+                // Represents one file with its url and meta data
+                val files = result.files!![itag]
+
+                // Just add videos in a decent format => height -1 = audio
+                if (files!!.format.height == -1 || files.format.height >= 360) {
+                    withContext(Dispatchers.Main) { addButtonToMainLayout(result.videoMetadata!!.title, files) }
+                }
+                i++
+            }
+        }
     }
 
     private fun addButtonToMainLayout(videoTitle: String, ytfile: YtFile) {

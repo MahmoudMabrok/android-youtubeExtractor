@@ -1,16 +1,15 @@
-package me.echeung.youtubeextractor;
+package me.echeung.youtubeextractor.internal;
 
 import android.content.Context;
-import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.util.SparseArray;
 
-import androidx.annotation.NonNull;
-
 import com.evgenii.jsevaluator.JsEvaluator;
 import com.evgenii.jsevaluator.interfaces.JsCallback;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -33,9 +32,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import me.echeung.youtubeextractor.internal.FormatMap;
+import me.echeung.youtubeextractor.Format;
+import me.echeung.youtubeextractor.VideoMetadata;
+import me.echeung.youtubeextractor.YouTubeExtractor;
+import me.echeung.youtubeextractor.YtFile;
 
-public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArray<YtFile>> {
+public class Extractor {
 
     private final static boolean CACHING = true;
 
@@ -47,7 +49,7 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
     private final String cacheDirPath;
 
     private String videoID;
-    private VideoMeta videoMeta;
+    private VideoMetadata videoMetadata;
 
     private volatile String decipheredSignature;
 
@@ -88,31 +90,14 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
     private static final Pattern patSignatureDecFunction = Pattern.compile("(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
     private boolean useHttp = false;
 
-    public YouTubeExtractor(@NonNull Context context) {
-        refContext = new WeakReference<>(context);
-        cacheDirPath = context.getCacheDir().getAbsolutePath();
+    public Extractor(WeakReference<Context> refContext, String cacheDirPath) {
+        this.refContext = refContext;
+        this.cacheDirPath = cacheDirPath;
     }
 
-    @Override
-    protected void onPostExecute(SparseArray<YtFile> ytFiles) {
-        onExtractionComplete(ytFiles, videoMeta);
-    }
-
-    /**
-     * Start the extraction.
-     *
-     * @param youtubeLink       the youtube page link or video id
-     */
-    public void extract(String youtubeLink) {
-        this.execute(youtubeLink);
-    }
-
-    protected abstract void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta);
-
-    @Override
-    protected SparseArray<YtFile> doInBackground(String... params) {
+    @Nullable
+    public YouTubeExtractor.Result getYtFiles(String ytUrl) {
         videoID = null;
-        String ytUrl = params[0];
         if (ytUrl == null) {
             return null;
         }
@@ -129,7 +114,7 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
         }
         if (videoID != null) {
             try {
-                return getStreamUrls();
+                return new YouTubeExtractor.Result(getStreamUrls(), videoMetadata);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -163,7 +148,7 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
 
         parseVideoMeta(streamMap);
 
-        if(videoMeta.isLiveStream()){
+        if(videoMetadata.isLiveStream()){
             mat = patHlsvp.matcher(streamMap);
             if(mat.find()) {
                 String hlsvp = URLDecoder.decode(mat.group(1), "UTF-8");
@@ -485,7 +470,7 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
         if (mat.find()) {
             viewCount = Long.parseLong(mat.group(1));
         }
-        videoMeta = new VideoMeta(videoID, title, author, channelId, length, viewCount, isLiveStream, shortDescript);
+        videoMetadata = new VideoMetadata(videoID, title, author, channelId, length, viewCount, isLiveStream, shortDescript);
     }
 
     private void readDecipherFunctFromCache() {

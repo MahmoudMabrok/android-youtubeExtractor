@@ -32,14 +32,14 @@ public class ExtractorTestCases {
 
     @Test
     public void testUsualVideo() throws Throwable {
-        VideoMeta expMeta = new VideoMeta("YE7VzlLtp-4", "Big Buck Bunny", "Blender",
+        VideoMetadata expMeta = new VideoMetadata("YE7VzlLtp-4", "Big Buck Bunny", "Blender",
                 "UCSMOQeBJ2RAnuFungnQOxLg", 597, 0, false, "");
         extractorTest("http://youtube.com/watch?v=YE7VzlLtp-4", expMeta);
     }
 
     @Test
     public void testUnembeddable() throws Throwable {
-        VideoMeta expMeta = new VideoMeta("QH4VHl2uQ9o", "Match Chain Reaction Amazing Fire Art - real ghost rider", "BLACKHAND",
+        VideoMetadata expMeta = new VideoMetadata("QH4VHl2uQ9o", "Match Chain Reaction Amazing Fire Art - real ghost rider", "BLACKHAND",
                 "UCl9nsRuGenStMDZfD95w85A", 331, 0, false, "");
         extractorTest("https://www.youtube.com/watch?v=QH4VHl2uQ9o", expMeta);
         extractorTestDashManifest("https://www.youtube.com/watch?v=QH4VHl2uQ9o");
@@ -47,14 +47,14 @@ public class ExtractorTestCases {
 
     @Test
     public void testEncipheredVideo() throws Throwable {
-        VideoMeta expMeta = new VideoMeta("e8X3ACToii0", "Rise Against - Savior (Official Video)", "RiseAgainstVEVO",
+        VideoMetadata expMeta = new VideoMetadata("e8X3ACToii0", "Rise Against - Savior (Official Video)", "RiseAgainstVEVO",
                 "UChMKB2AHNpeuWhalpRYhUaw", 243, 0, false, "");
         extractorTest("https://www.youtube.com/watch?v=e8X3ACToii0", expMeta);
     }
 
     @Test
     public void testAgeRestrictVideo() throws Throwable {
-        VideoMeta expMeta = new VideoMeta("61Ev-YvBw2c", "Test video for age-restriction",
+        VideoMetadata expMeta = new VideoMetadata("61Ev-YvBw2c", "Test video for age-restriction",
                 "jpdemoA", "UC95NqtFsDZKlmzOJmZi_g6Q", 14, 0, false, "");
         extractorTest("http://www.youtube.com/watch?v=61Ev-YvBw2c", expMeta);
         // extractorTestDashManifest("http://www.youtube.com/watch?v=61Ev-YvBw2c");
@@ -76,7 +76,7 @@ public class ExtractorTestCases {
         new Handler(Looper.getMainLooper()).post(() -> {
             final YouTubeExtractor ytEx = new YouTubeExtractor(InstrumentationRegistry.getContext()) {
                 @Override
-                public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
+                public void onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMetadata videoMeta) {
                     assertNotNull(ytFiles);
                     int numNotDash = 0;
                     int itag;
@@ -110,7 +110,7 @@ public class ExtractorTestCases {
     }
 
 
-    private void extractorTest(final String youtubeLink, final VideoMeta expMeta)
+    private void extractorTest(final String youtubeLink, final VideoMetadata expMeta)
             throws Throwable {
         final CountDownLatch signal = new CountDownLatch(1);
 
@@ -120,12 +120,12 @@ public class ExtractorTestCases {
             final YouTubeExtractor ytEx = new YouTubeExtractor(getInstrumentation()
                     .getTargetContext()) {
                 @Override
-                public void  onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMeta videoMeta) {
+                public void  onExtractionComplete(SparseArray<YtFile> ytFiles, VideoMetadata videoMeta) {
                     assertEquals(expMeta.getVideoId(), videoMeta.getVideoId());
                     assertEquals(expMeta.getTitle(),videoMeta.getTitle());
                     assertEquals(expMeta.getAuthor(), videoMeta.getAuthor());
                     assertEquals(expMeta.getChannelId(), videoMeta.getChannelId());
-                    assertEquals(expMeta.getVideoLength(), videoMeta.getVideoLength());
+                    assertEquals(expMeta.getDuration(), videoMeta.getDuration());
                     assertNotSame(0, videoMeta.getViewCount());
                     assertNotNull(ytFiles);
                     int itag = ytFiles.keyAt(new Random().nextInt(ytFiles.size()));

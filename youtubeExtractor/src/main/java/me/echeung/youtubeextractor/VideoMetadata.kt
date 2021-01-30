@@ -1,6 +1,6 @@
 package me.echeung.youtubeextractor
 
-data class VideoMeta(
+data class VideoMetadata(
     val videoId: String,
     val title: String,
     val author: String,
@@ -8,7 +8,7 @@ data class VideoMeta(
     /**
      * The video length in seconds.
      */
-    val videoLength: Long,
+    val duration: Long,
     val viewCount: Long,
     val isLiveStream: Boolean,
     val shortDescription: String
