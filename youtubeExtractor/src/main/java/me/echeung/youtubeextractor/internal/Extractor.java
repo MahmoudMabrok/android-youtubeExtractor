@@ -48,7 +48,7 @@ public class Extractor {
     private final WeakReference<Context> refContext;
     private final String cacheDirPath;
 
-    private String videoID;
+    private String videoId;
     private VideoMetadata videoMetadata;
 
     private volatile String decipheredSignature;
@@ -61,9 +61,6 @@ public class Extractor {
     private final Condition jsExecuting = lock.newCondition();
 
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.115 Safari/537.36";
-
-    private static final Pattern patYouTubePageLink = Pattern.compile("(http|https)://(www\\.|m.|)youtube\\.com/watch\\?v=(.+?)( |\\z|&)");
-    private static final Pattern patYouTubeShortLink = Pattern.compile("(http|https)://(www\\.|)youtu.be/(.+?)( |\\z|&)");
 
     private static final Pattern patTitle = Pattern.compile("\"title\"\\s*:\\s*\"(.*?)\"");
     private static final Pattern patAuthor = Pattern.compile("\"author\"\\s*:\\s*\"(.+?)\"");
@@ -97,22 +94,8 @@ public class Extractor {
 
     @Nullable
     public YouTubeExtractor.Result getYtFiles(String ytUrl) {
-        videoID = null;
-        if (ytUrl == null) {
-            return null;
-        }
-        Matcher mat = patYouTubePageLink.matcher(ytUrl);
-        if (mat.find()) {
-            videoID = mat.group(3);
-        } else {
-            mat = patYouTubeShortLink.matcher(ytUrl);
-            if (mat.find()) {
-                videoID = mat.group(3);
-            } else if (ytUrl.matches("\\p{Graph}+?")) {
-                videoID = ytUrl;
-            }
-        }
-        if (videoID != null) {
+        videoId = new VideoIdExtractor().getVideoId(ytUrl);
+        if (videoId != null) {
             try {
                 return new YouTubeExtractor.Result(getStreamUrls(), videoMetadata);
             } catch (Exception e) {
@@ -126,8 +109,8 @@ public class Extractor {
 
     private SparseArray<YtFile> getStreamUrls() throws IOException, InterruptedException {
         String ytInfoUrl = (useHttp) ? "http://" : "https://";
-        ytInfoUrl += "www.youtube.com/get_video_info?video_id=" + videoID + "&eurl="
-                + URLEncoder.encode("https://youtube.googleapis.com/v/" + videoID, "UTF-8");
+        ytInfoUrl += "www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
+                + URLEncoder.encode("https://youtube.googleapis.com/v/" + videoId, "UTF-8");
 
         String streamMap;
         URL getUrl = new URL(ytInfoUrl);
@@ -202,7 +185,7 @@ public class Extractor {
             }
             Log.d(LOG_TAG, "Get from youtube page");
 
-            getUrl = new URL("https://youtube.com/watch?v=" + videoID);
+            getUrl = new URL("https://youtube.com/watch?v=" + videoId);
             urlConnection = (HttpURLConnection) getUrl.openConnection();
             urlConnection.setRequestProperty("User-Agent", USER_AGENT);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()))) {
@@ -470,7 +453,7 @@ public class Extractor {
         if (mat.find()) {
             viewCount = Long.parseLong(mat.group(1));
         }
-        videoMetadata = new VideoMetadata(videoID, title, author, channelId, length, viewCount, isLiveStream, shortDescript);
+        videoMetadata = new VideoMetadata(videoId, title, author, channelId, length, viewCount, isLiveStream, shortDescript);
     }
 
     private void readDecipherFunctFromCache() {
