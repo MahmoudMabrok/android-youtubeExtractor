@@ -1,6 +1,0 @@
-<resources xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-    </style>
-
-</resources>
