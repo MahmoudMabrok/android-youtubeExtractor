@@ -78,7 +78,7 @@ class SampleDownloadActivity : AppCompatActivity() {
                     i++
                 }
             }
-        }.extract(youtubeLink, true)
+        }.extract(youtubeLink)
     }
 
     private fun addButtonToMainLayout(videoTitle: String, ytfile: YtFile) {

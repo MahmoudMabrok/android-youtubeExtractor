@@ -45,11 +45,9 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
     private static final FormatMap formatMap = new FormatMap();
     private final WeakReference<Context> refContext;
     private final String cacheDirPath;
-    private boolean includeWebM = true;
 
     private String videoID;
     private VideoMeta videoMeta;
-
 
     private volatile String decipheredSignature;
 
@@ -104,10 +102,8 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
      * Start the extraction.
      *
      * @param youtubeLink       the youtube page link or video id
-     * @param includeWebM       true if WebM streams should be extracted
      */
-    public void extract(String youtubeLink, boolean includeWebM) {
-        this.includeWebM = includeWebM;
+    public void extract(String youtubeLink) {
         this.execute(youtubeLink);
     }
 
@@ -291,8 +287,6 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
 
             if (formatMap.FORMAT_MAP.get(itag) == null) {
                 Log.d(LOG_TAG, "Itag not in list:" + itag);
-                continue;
-            } else if (!includeWebM && formatMap.FORMAT_MAP.get(itag).getExt().equals("webm")) {
                 continue;
             }
 
@@ -506,13 +500,6 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
                 e.printStackTrace();
             }
         }
-    }
-
-    /**
-     * Include the webm format files into the result. Default: true
-     */
-    public void setIncludeWebM(boolean includeWebM) {
-        this.includeWebM = includeWebM;
     }
 
     /**

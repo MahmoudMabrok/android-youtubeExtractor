@@ -93,7 +93,7 @@ public class ExtractorTestCases {
                     signal.countDown();
                 }
             };
-            ytEx.extract(youtubeLink, true);
+            ytEx.extract(youtubeLink);
         });
 
         signal.await(10, TimeUnit.SECONDS);
@@ -134,7 +134,7 @@ public class ExtractorTestCases {
                     signal.countDown();
                 }
             };
-            ytEx.extract(youtubeLink, true);
+            ytEx.extract(youtubeLink);
         });
 
         signal.await(10, TimeUnit.SECONDS);
@@ -149,5 +149,4 @@ public class ExtractorTestCases {
         con.disconnect();
         assertEquals(200, code);
     }
-
 }
