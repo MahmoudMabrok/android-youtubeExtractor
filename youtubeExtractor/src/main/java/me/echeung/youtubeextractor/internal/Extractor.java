@@ -6,10 +6,10 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.SparseArray;
 
+import androidx.annotation.Nullable;
+
 import com.evgenii.jsevaluator.JsEvaluator;
 import com.evgenii.jsevaluator.interfaces.JsCallback;
-
-import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -62,12 +62,6 @@ public class Extractor {
 
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.115 Safari/537.36";
 
-    private static final Pattern patTitle = Pattern.compile("\"title\"\\s*:\\s*\"(.*?)\"");
-    private static final Pattern patAuthor = Pattern.compile("\"author\"\\s*:\\s*\"(.+?)\"");
-    private static final Pattern patChannelId = Pattern.compile("\"channelId\"\\s*:\\s*\"(.+?)\"");
-    private static final Pattern patLength = Pattern.compile("\"lengthSeconds\"\\s*:\\s*\"(\\d+?)\"");
-    private static final Pattern patViewCount = Pattern.compile("\"viewCount\"\\s*:\\s*\"(\\d+?)\"");
-    private static final Pattern patShortDescript = Pattern.compile("\"shortDescription\"\\s*:\\s*\"(.+?)\"");
     private static final Pattern patStatusOk = Pattern.compile("status=ok(&|,|\\z)");
 
     private static final Pattern patHlsvp = Pattern.compile("hlsvp=(.+?)(&|\\z)");
@@ -127,7 +121,7 @@ public class Extractor {
         streamMap = URLDecoder.decode(streamMap, "UTF-8");
         streamMap = streamMap.replace("\\u0026", "&");
 
-        parseVideoMetadata(streamMap);
+        videoMetadata = new VideoMetadataParser().parseVideoMetadata(videoId, streamMap);
 
         if(videoMetadata.isLiveStream()){
             mat = patHlsvp.matcher(streamMap);
@@ -415,43 +409,6 @@ public class Extractor {
             decipherViaWebView(encSignatures);
         }
         return true;
-    }
-
-    private void parseVideoMetadata(String videoInfo) {
-        boolean isLiveStream = false;
-        String title = null, author = null, channelId = null, shortDescript = null;
-        long viewCount = 0, length = 0;
-        Matcher mat = patTitle.matcher(videoInfo);
-        if (mat.find()) {
-            title = mat.group(1);
-        }
-
-        mat = patHlsvp.matcher(videoInfo);
-        if(mat.find())
-            isLiveStream = true;
-
-        mat = patAuthor.matcher(videoInfo);
-        if (mat.find()) {
-            author = mat.group(1);
-        }
-        mat = patChannelId.matcher(videoInfo);
-        if (mat.find()) {
-            channelId = mat.group(1);
-        }
-        mat = patShortDescript.matcher(videoInfo);
-        if (mat.find()) {
-            shortDescript = mat.group(1);
-        }
-
-        mat = patLength.matcher(videoInfo);
-        if (mat.find()) {
-            length = Long.parseLong(mat.group(1));
-        }
-        mat = patViewCount.matcher(videoInfo);
-        if (mat.find()) {
-            viewCount = Long.parseLong(mat.group(1));
-        }
-        videoMetadata = new VideoMetadata(videoId, title, author, channelId, length, viewCount, isLiveStream, shortDescript);
     }
 
     private void readDecipherFunctFromCache() {
