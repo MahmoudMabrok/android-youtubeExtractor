@@ -17,8 +17,8 @@ data class Format(
      * Get the frames per second
      */
     val fps: Int,
-    val vCodec: VCodec? = null,
-    val aCoded: ACodec? = null,
+    val videoCodec: VideoCodec? = null,
+    val audioCodec: AudioCodec? = null,
     /**
      * Audio bitrate in kbit/s or -1 if there is no audio track.
      */
@@ -26,11 +26,11 @@ data class Format(
     val isDashContainer: Boolean,
     val isHlsContent: Boolean
 ) {
-    enum class VCodec {
+    enum class VideoCodec {
         H263, H264, MPEG4, VP8, VP9, NONE
     }
 
-    enum class ACodec {
+    enum class AudioCodec {
         MP3, AAC, VORBIS, OPUS, NONE
     }
 
@@ -38,8 +38,8 @@ data class Format(
         itag: Int,
         ext: String,
         height: Int,
-        vCodec: VCodec?,
-        aCodec: ACodec?,
+        videoCodec: VideoCodec?,
+        audioCodec: AudioCodec?,
         isDashContainer: Boolean
     ) : this(
         itag = itag,
@@ -54,8 +54,8 @@ data class Format(
     internal constructor(
         itag: Int,
         ext: String,
-        vCodec: VCodec?,
-        aCodec: ACodec?,
+        videoCodec: VideoCodec?,
+        audioCodec: AudioCodec?,
         audioBitrate: Int,
         isDashContainer: Boolean
     ) : this(
@@ -69,7 +69,12 @@ data class Format(
     )
 
     internal constructor(
-        itag: Int, ext: String, height: Int, vCodec: VCodec?, aCodec: ACodec?, audioBitrate: Int,
+        itag: Int,
+        ext: String,
+        height: Int,
+        videoCodec: VideoCodec?,
+        audioCodec: AudioCodec?,
+        audioBitrate: Int,
         isDashContainer: Boolean
     ) : this(
         itag = itag,
@@ -82,8 +87,14 @@ data class Format(
     )
 
     internal constructor(
-        itag: Int, ext: String, height: Int, vCodec: VCodec?, aCodec: ACodec?, audioBitrate: Int,
-        isDashContainer: Boolean, isHlsContent: Boolean
+        itag: Int,
+        ext: String,
+        height: Int,
+        videoCodec: VideoCodec?,
+        audioCodec: AudioCodec?,
+        audioBitrate: Int,
+        isDashContainer: Boolean,
+        isHlsContent: Boolean
     ) : this(
         itag = itag,
         ext = ext,
@@ -98,9 +109,9 @@ data class Format(
         itag: Int,
         ext: String,
         height: Int,
-        vCodec: VCodec?,
+        videoCodec: VideoCodec?,
         fps: Int,
-        aCodec: ACodec?,
+        audioCodec: AudioCodec?,
         isDashContainer: Boolean
     ) : this(
         itag = itag,
