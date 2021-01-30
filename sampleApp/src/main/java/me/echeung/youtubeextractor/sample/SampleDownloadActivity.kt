@@ -15,8 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.Video
+import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.sample.databinding.ActivitySampleDownloadBinding
 
 class SampleDownloadActivity : AppCompatActivity() {
@@ -61,19 +61,9 @@ class SampleDownloadActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) { finish() }
                 return@launch
             }
-            // Iterate over itags
-            var i = 0
-            var itag: Int
-            while (i < result.videos!!.size()) {
-                itag = result.videos!!.keyAt(i)
-                // Represents one file with its url and meta data
-                val files = result.videos!![itag]
 
-                // Just add videos in a decent format => height -1 = audio
-                if (files!!.format.height == -1 || files.format.height >= 360) {
-                    withContext(Dispatchers.Main) { addButtonToMainLayout(result.metadata!!.title, files) }
-                }
-                i++
+            result.videos!!.values.forEach {
+                withContext(Dispatchers.Main) { addButtonToMainLayout(result.metadata!!.title, it) }
             }
         }
     }

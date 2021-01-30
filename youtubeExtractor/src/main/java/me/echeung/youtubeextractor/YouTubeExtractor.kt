@@ -29,7 +29,7 @@ class YouTubeExtractor(context: Context) {
     }
 
     class Result(
-        val videos: SparseArray<Video>?,
+        val videos: Map<Int, Video>?,
         val metadata: Metadata
     )
 }

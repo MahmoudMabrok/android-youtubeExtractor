@@ -53,13 +53,30 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
         val videos = if (metadata.isLive) {
             getLiveStreamVideos(streamInfo)
         } else {
-            getStreamVideos(streamInfo)
+            getNonLiveStreamVideos(streamInfo)
         }
 
         return YouTubeExtractor.Result(videos, metadata)
     }
 
-    private fun getStreamVideos(streamInfo: JsonObject): SparseArray<Video>? {
+    private fun getStreamInfo(): JsonObject {
+        val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
+            URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8")
+
+        // This is basically a URL query parameter list (i.e. foo=bar&baz=baq&...)
+        var data = ""
+        http.get(ytInfoUrl) { data = it }
+        data = URLDecoder.decode(data, "UTF-8")
+        data = data.replace("\\u0026", "&")
+
+        // Extract the relevant JSON
+        val matcher = "player_response=(\\{.*\\})".toPattern().matcher(data)
+        matcher.find()
+        val jsonStr = matcher.group(1)
+        return Json.decodeFromString(jsonStr)
+    }
+
+    private fun getNonLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
         // var mat: Matcher
         // val curJsFileName: String
         // var encSignatures: SparseArray<String?>? = null
@@ -181,11 +198,11 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
         return null
     }
 
-    private fun getLiveStreamVideos(streamInfo: JsonObject): SparseArray<Video>? {
+    private fun getLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
         val streamingData = streamInfo["streamingData"]!!.jsonObject
         val hlsManifestUrl = streamingData["hlsManifestUrl"]!!.jsonPrimitive.content
 
-        val videos: SparseArray<Video> = SparseArray()
+        val videos = mutableMapOf<Int, Video>()
 
         http.get(hlsManifestUrl) {
             if (it.startsWith("http")) {
@@ -198,28 +215,11 @@ class Extractor(private val refContext: WeakReference<Context>, private val cach
             }
         }
 
-        if (videos.size() == 0) {
+        if (videos.isEmpty()) {
             return null
         }
 
         return videos
-    }
-
-    private fun getStreamInfo(): JsonObject {
-        val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
-            URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8")
-
-        // This is basically a URL query parameter list (i.e. foo=bar&baz=baq&...)
-        var data = ""
-        http.get(ytInfoUrl) { data = it }
-        data = URLDecoder.decode(data, "UTF-8")
-        data = data.replace("\\u0026", "&")
-
-        // Extract the relevant JSON
-        val matcher = "player_response=(\\{.*\\})".toPattern().matcher(data)
-        matcher.find()
-        val jsonStr = matcher.group(1)
-        return Json.decodeFromString(jsonStr)
     }
 
     private fun decipherSignature(encSignatures: SparseArray<String?>): Boolean {
