@@ -85,7 +85,6 @@ public class Extractor {
     private static final Pattern patDecryptionJsFile = Pattern.compile("\\\\/s\\\\/player\\\\/([^\"]+?)\\.js");
     private static final Pattern patDecryptionJsFileWithoutSlash = Pattern.compile("/s/player/([^\"]+?).js");
     private static final Pattern patSignatureDecFunction = Pattern.compile("(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)");
-    private boolean useHttp = false;
 
     public Extractor(WeakReference<Context> refContext, String cacheDirPath) {
         this.refContext = refContext;
@@ -108,8 +107,7 @@ public class Extractor {
     }
 
     private SparseArray<YtFile> getStreamUrls() throws IOException, InterruptedException {
-        String ytInfoUrl = (useHttp) ? "http://" : "https://";
-        ytInfoUrl += "www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
+        String ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=" + videoId + "&eurl="
                 + URLEncoder.encode("https://youtube.googleapis.com/v/" + videoId, "UTF-8");
 
         String streamMap;
@@ -129,7 +127,7 @@ public class Extractor {
         streamMap = URLDecoder.decode(streamMap, "UTF-8");
         streamMap = streamMap.replace("\\u0026", "&");
 
-        parseVideoMeta(streamMap);
+        parseVideoMetadata(streamMap);
 
         if(videoMetadata.isLiveStream()){
             mat = patHlsvp.matcher(streamMap);
@@ -419,37 +417,37 @@ public class Extractor {
         return true;
     }
 
-    private void parseVideoMeta(String getVideoInfo) {
+    private void parseVideoMetadata(String videoInfo) {
         boolean isLiveStream = false;
         String title = null, author = null, channelId = null, shortDescript = null;
         long viewCount = 0, length = 0;
-        Matcher mat = patTitle.matcher(getVideoInfo);
+        Matcher mat = patTitle.matcher(videoInfo);
         if (mat.find()) {
             title = mat.group(1);
         }
 
-        mat = patHlsvp.matcher(getVideoInfo);
+        mat = patHlsvp.matcher(videoInfo);
         if(mat.find())
             isLiveStream = true;
 
-        mat = patAuthor.matcher(getVideoInfo);
+        mat = patAuthor.matcher(videoInfo);
         if (mat.find()) {
             author = mat.group(1);
         }
-        mat = patChannelId.matcher(getVideoInfo);
+        mat = patChannelId.matcher(videoInfo);
         if (mat.find()) {
             channelId = mat.group(1);
         }
-        mat = patShortDescript.matcher(getVideoInfo);
+        mat = patShortDescript.matcher(videoInfo);
         if (mat.find()) {
             shortDescript = mat.group(1);
         }
 
-        mat = patLength.matcher(getVideoInfo);
+        mat = patLength.matcher(videoInfo);
         if (mat.find()) {
             length = Long.parseLong(mat.group(1));
         }
-        mat = patViewCount.matcher(getVideoInfo);
+        mat = patViewCount.matcher(videoInfo);
         if (mat.find()) {
             viewCount = Long.parseLong(mat.group(1));
         }
@@ -468,17 +466,6 @@ public class Extractor {
                 e.printStackTrace();
             }
         }
-    }
-
-    /**
-     * Set default protocol of the returned urls to HTTP instead of HTTPS.
-     * HTTP may be blocked in some regions so HTTPS is the default value.
-     * <p/>
-     * Note: Enciphered videos require HTTPS so they are not affected by
-     * this.
-     */
-    public void setDefaultHttpProtocol(boolean useHttp) {
-        this.useHttp = useHttp;
     }
 
     private void writeDeciperFunctToChache() {
