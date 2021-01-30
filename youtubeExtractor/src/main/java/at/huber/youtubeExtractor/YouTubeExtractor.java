@@ -97,15 +97,13 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
         onExtractionComplete(ytFiles, videoMeta);
     }
 
-
     /**
      * Start the extraction.
      *
      * @param youtubeLink       the youtube page link or video id
-     * @param parseDashManifest not supported anymore
      * @param includeWebM       true if WebM streams should be extracted
      */
-    public void extract(String youtubeLink, boolean parseDashManifest, boolean includeWebM) {
+    public void extract(String youtubeLink, boolean includeWebM) {
         this.includeWebM = includeWebM;
         this.execute(youtubeLink);
     }
@@ -542,19 +540,11 @@ public abstract class YouTubeExtractor extends AsyncTask<String, Void, SparseArr
     }
 
     /**
-     * not supported anymore
-     */
-    public void setParseDashManifest(boolean parseDashManifest) {
-    }
-
-
-    /**
      * Include the webm format files into the result. Default: true
      */
     public void setIncludeWebM(boolean includeWebM) {
         this.includeWebM = includeWebM;
     }
-
 
     /**
      * Set default protocol of the returned urls to HTTP instead of HTTPS.
