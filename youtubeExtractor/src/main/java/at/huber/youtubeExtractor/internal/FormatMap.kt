@@ -1,4 +1,6 @@
-package at.huber.youtubeExtractor
+package at.huber.youtubeExtractor.internal
+
+import at.huber.youtubeExtractor.Format
 
 /**
  * See:
