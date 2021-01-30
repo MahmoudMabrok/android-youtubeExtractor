@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class HttpClient {
-    @Throws(IOException::class)
+
     fun get(url: String, lineReader: (String) -> Unit) {
         Log.d("YT:HttpClient", "Getting info from: $url")
         val getUrl = URL(url)
