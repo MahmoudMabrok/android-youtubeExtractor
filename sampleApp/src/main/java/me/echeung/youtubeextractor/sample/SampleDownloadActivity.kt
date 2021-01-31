@@ -47,7 +47,7 @@ class SampleDownloadActivity : AppCompatActivity() {
     }
 
     private fun getYoutubeDownloadUrl(youtubeLink: String?) {
-        val extractor = YouTubeExtractor(this)
+        val extractor = YouTubeExtractor(this, withLogging = true)
 
         GlobalScope.launch(Dispatchers.IO) {
             val result = extractor.extract(youtubeLink)

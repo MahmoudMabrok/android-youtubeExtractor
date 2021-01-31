@@ -1,13 +1,13 @@
 package me.echeung.youtubeextractor.internal
 
 import android.content.Context
-import android.util.Log
 import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.internal.cipher.CipherUtil
 import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.parser.VideoIdParser
 import me.echeung.youtubeextractor.internal.parser.VideoMetadataParser
+import me.echeung.youtubeextractor.internal.util.Logger
 import me.echeung.youtubeextractor.internal.util.toList
 import me.echeung.youtubeextractor.internal.util.urlDecode
 import me.echeung.youtubeextractor.internal.util.urlEncode
@@ -15,15 +15,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 
-class Extractor(private val contextRef: WeakReference<Context>) {
+class Extractor(private val contextRef: WeakReference<Context>, withLogging: Boolean) {
 
-    private val http = HttpClient()
+    private val log = Logger(withLogging)
+    private val http = HttpClient(log)
     private var videoId: String? = null
 
     suspend fun extract(urlOrId: String?): YouTubeExtractor.Result? {
         videoId = VideoIdParser().getVideoId(urlOrId)
         if (videoId == null) {
-            Log.e(TAG, "Invalid YouTube link format: $urlOrId")
+            log.e("Invalid YouTube link format: $urlOrId")
             return null
         }
 
@@ -35,8 +36,8 @@ class Extractor(private val contextRef: WeakReference<Context>) {
             getNonLiveStreamFiles(streamInfo)
         }
 
-        Log.d(TAG, "Video metadata: $metadata")
-        Log.d(TAG, "Video files: $files")
+        log.d("Video metadata: $metadata")
+        log.d("Video files: $files")
 
         return YouTubeExtractor.Result(files, metadata)
     }
@@ -95,9 +96,9 @@ class Extractor(private val contextRef: WeakReference<Context>) {
             .associateBy { it.format.itag }
 
         if (encryptedSignatures.isNotEmpty()) {
-            Log.d(TAG, "Decipher signatures: " + encryptedSignatures.size + ", files: " + files.size)
+            log.d("Decipher signatures: " + encryptedSignatures.size + ", files: " + files.size)
 
-            val cipherClient = CipherUtil(http, contextRef)
+            val cipherClient = CipherUtil(contextRef, http, log)
             val signatures = cipherClient.decipherSignatures(videoId!!, encryptedSignatures)
             signatures ?: return null
 
@@ -140,8 +141,6 @@ class Extractor(private val contextRef: WeakReference<Context>) {
     }
 
     companion object {
-        const val TAG = "YouTubeExtractor"
-
         private val HLS_ITAG_PATTERN by lazy {
             "/itag/(\\d+?)/".toPattern()
         }

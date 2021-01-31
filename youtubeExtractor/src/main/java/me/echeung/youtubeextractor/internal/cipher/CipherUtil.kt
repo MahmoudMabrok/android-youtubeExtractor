@@ -1,20 +1,20 @@
 package me.echeung.youtubeextractor.internal.cipher
 
 import android.content.Context
-import android.util.Log
 import com.evgenii.jsevaluator.JsEvaluator
 import com.evgenii.jsevaluator.interfaces.JsCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import me.echeung.youtubeextractor.internal.Extractor
 import me.echeung.youtubeextractor.internal.http.HttpClient
+import me.echeung.youtubeextractor.internal.util.Logger
 import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class CipherUtil(
+    private val contextRef: WeakReference<Context>,
     private val http: HttpClient,
-    private val contextRef: WeakReference<Context>
+    private val log: Logger,
 ) {
 
     suspend fun decipherSignatures(videoId: String, encryptedSignatures: List<Pair<Int, String>>): Map<Int, String>? {
@@ -54,7 +54,7 @@ class CipherUtil(
         val fileName = mat.group(0).replace("\\/", "/")
 
         val url = "https://youtube.com$fileName"
-        Log.d(Extractor.TAG, "Decipher function URL: $fileName")
+        log.d("Decipher function URL: $fileName")
 
         val file = StringBuilder("")
         http.get(url) {
@@ -71,7 +71,7 @@ class CipherUtil(
         }
 
         val decipherFunctionName = mat.group(1)
-        Log.d(Extractor.TAG, "Decipher function name: $decipherFunctionName")
+        log.d("Decipher function name: $decipherFunctionName")
         val patMainVariable = ("(var |\\s|,|;)" + decipherFunctionName.replace("$", "\\$") +
             "(=function\\((.{1,3})\\)\\{)").toPattern()
         var mainDecipherFunct: String
@@ -145,7 +145,7 @@ class CipherUtil(
                 i++
             }
         }
-        Log.d(Extractor.TAG, "Decipher function: $decipherFunctions")
+        log.d("Decipher function: $decipherFunctions")
         return Pair(decipherFunctions, decipherFunctionName)
     }
 
@@ -168,7 +168,7 @@ class CipherUtil(
                 }
 
                 override fun onError(errorMessage: String) {
-                    Log.e(Extractor.TAG, errorMessage)
+                    log.e(errorMessage)
                     cont.resume(null)
                 }
             })

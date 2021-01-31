@@ -6,9 +6,9 @@ import kotlinx.coroutines.withContext
 import me.echeung.youtubeextractor.internal.Extractor
 import java.lang.ref.WeakReference
 
-class YouTubeExtractor(context: Context) {
+class YouTubeExtractor(context: Context, withLogging: Boolean = false) {
 
-    private val extractor: Extractor = Extractor(WeakReference(context))
+    private val extractor: Extractor = Extractor(WeakReference(context), withLogging)
 
     /**
      * Extract the video links and metadata.
