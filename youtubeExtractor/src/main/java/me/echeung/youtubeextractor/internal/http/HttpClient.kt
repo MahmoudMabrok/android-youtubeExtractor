@@ -1,8 +1,8 @@
 package me.echeung.youtubeextractor.internal.http
 
 import android.util.Log
+import me.echeung.youtubeextractor.internal.Extractor
 import java.io.BufferedReader
-import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -10,7 +10,7 @@ import java.net.URL
 class HttpClient {
 
     fun get(url: String, lineReader: (String) -> Unit) {
-        Log.d("YT:HttpClient", "Getting info from: $url")
+        Log.d(Extractor.TAG, "Getting info from: $url")
         val getUrl = URL(url)
         val urlConnection = getUrl.openConnection() as HttpURLConnection
         urlConnection.setRequestProperty("User-Agent", USER_AGENT)

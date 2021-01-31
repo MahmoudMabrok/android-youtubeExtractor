@@ -1,5 +1,6 @@
 package me.echeung.youtubeextractor.internal
 
+import android.content.Context
 import android.util.Log
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -10,18 +11,20 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.echeung.youtubeextractor.Video
 import me.echeung.youtubeextractor.YouTubeExtractor
+import me.echeung.youtubeextractor.internal.cipher.CipherClient
 import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.parser.VideoIdParser
 import me.echeung.youtubeextractor.internal.parser.VideoMetadataParser
+import java.lang.ref.WeakReference
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-class Extractor {
+class Extractor(private val contextRef: WeakReference<Context>) {
 
     private val http = HttpClient()
     private var videoId: String? = null
 
-    fun extract(urlOrId: String?): YouTubeExtractor.Result? {
+    suspend fun extract(urlOrId: String?): YouTubeExtractor.Result? {
         videoId = VideoIdParser().getVideoId(urlOrId)
         if (videoId == null) {
             Log.e(TAG, "Invalid YouTube link format: $urlOrId")
@@ -56,20 +59,61 @@ class Extractor {
         return Json.decodeFromString(jsonStr)
     }
 
-    private fun getNonLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
+    private suspend fun getNonLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
         val streamingData = streamInfo["streamingData"]!!.jsonObject
         val adaptiveFormats = streamingData["adaptiveFormats"]!!.jsonArray
+        val encSignatures = mutableListOf<Pair<Int, String>>()
 
-        val videos = adaptiveFormats
+        var videos = adaptiveFormats
             .map {
                 val obj = it.jsonObject
                 val itag = obj["itag"]!!.jsonPrimitive.int
-                val url = obj["url"]!!.jsonPrimitive.content
-                Pair(itag, url)
+                val url = obj["url"]?.jsonPrimitive?.content
+                val cipher = obj["signatureCipher"]?.jsonPrimitive?.content
+                Triple(itag, url, cipher)
             }
-            .filter { (itag, url) -> FORMAT_MAP[itag] != null && !url.contains("&source=yt_otf&") }
-            .map { (itag, url) -> Video(FORMAT_MAP[itag]!!, url) }
+            .map { (itag, url, cipher) ->
+                var extractedUrl = url
+                if (cipher != null) {
+                    var matcher = patCipherUrl.matcher(cipher)
+                    if (matcher.find()) {
+                        extractedUrl = URLDecoder.decode(matcher.group(1), "UTF-8")
+                        matcher = patEncSig.matcher(cipher)
+                        if (matcher.find()) {
+                            var sig = URLDecoder.decode(matcher.group(1), "UTF-8")
+                            sig = sig.replace("\\u0026", "&")
+                            sig = sig.split("&").toTypedArray()[0]
+                            encSignatures.add(Pair(itag, sig))
+                        }
+                    }
+                }
+
+                Pair(itag, extractedUrl)
+            }
+            .filter { (itag, url) -> FORMAT_MAP[itag] != null && !url!!.contains("&source=yt_otf&") }
+            .map { (itag, url) -> Video(FORMAT_MAP[itag]!!, url!!) }
             .associateBy { it.format.itag }
+
+        if (encSignatures.isNotEmpty()) {
+            Log.d(TAG, "Decipher signatures: " + encSignatures.size + ", videos: " + videos.size)
+
+            val cipherClient = CipherClient(http, contextRef)
+
+            // Same order as encSignatures
+            val signatures = cipherClient.decipherSignature(videoId!!, encSignatures)
+            signatures ?: return null
+
+            val signaturesByItag = signatures.split("\n")
+                .mapIndexed { index, signature -> Pair(encSignatures[index].first, signature) }
+                .associateBy { it.first }
+
+            videos = videos.values
+                .map {
+                    val itag = it.format.itag
+                    Video(FORMAT_MAP[itag]!!, "${it.url}&sig=${signaturesByItag[itag]}")
+                }
+                .associateBy { it.format.itag }
+        }
 
         if (videos.isEmpty()) {
             return null
@@ -103,8 +147,16 @@ class Extractor {
     }
 
     companion object {
-        private const val TAG = "YouTubeExtractor"
+        const val TAG = "YouTubeExtractor"
 
-        private val patHlsItag by lazy { "/itag/(\\d+?)/".toPattern() }
+        private val patHlsItag by lazy {
+            "/itag/(\\d+?)/".toPattern()
+        }
+        private val patCipherUrl by lazy {
+            "url=(.+?)(\\\\\\\\u0026|\\z)".toPattern()
+        }
+        private val patEncSig by lazy {
+            "s=(.{10,}?)(\\\\\\\\u0026|\\z)".toPattern()
+        }
     }
 }
