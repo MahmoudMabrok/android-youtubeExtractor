@@ -1,6 +1,7 @@
 package me.echeung.youtubeextractor.internal.parser
 
-class VideoIdParser {
+object VideoIdParser {
+
     fun getVideoId(url: String?): String? {
         if (url == null) {
             return null
@@ -22,17 +23,15 @@ class VideoIdParser {
         return null
     }
 
-    companion object {
-        private val PAGE_LINK_PATTERN by lazy {
-            "(http|https)://(www\\.|m.|)youtube\\.com/watch\\?v=(.+?)( |\\z|&)".toPattern()
-        }
+    private val PAGE_LINK_PATTERN by lazy {
+        "(http|https)://(www\\.|m.|)youtube\\.com/watch\\?v=(.+?)( |\\z|&)".toPattern()
+    }
 
-        private val SHORT_LINK_PATTERN by lazy {
-            "(http|https)://(www\\.|)youtu.be/(.+?)( |\\z|&)".toPattern()
-        }
+    private val SHORT_LINK_PATTERN by lazy {
+        "(http|https)://(www\\.|)youtu.be/(.+?)( |\\z|&)".toPattern()
+    }
 
-        private val GRAPH_REGEX by lazy {
-            "\\p{Graph}+?".toRegex()
-        }
+    private val GRAPH_REGEX by lazy {
+        "\\p{Graph}+?".toRegex()
     }
 }

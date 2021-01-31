@@ -3,7 +3,8 @@ package me.echeung.youtubeextractor.internal.parser
 import me.echeung.youtubeextractor.YTMetadata
 import org.json.JSONObject
 
-class VideoMetadataParser {
+object VideoMetadataParser {
+
     fun parseVideoMetadata(videoId: String, streamInfo: JSONObject): YTMetadata {
         val videoDetails = streamInfo.getJSONObject("videoDetails")
 

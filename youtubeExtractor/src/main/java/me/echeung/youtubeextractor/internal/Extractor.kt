@@ -22,14 +22,14 @@ class Extractor(private val contextRef: WeakReference<Context>, withLogging: Boo
     private var videoId: String? = null
 
     suspend fun extract(urlOrId: String?): YouTubeExtractor.Result? {
-        videoId = VideoIdParser().getVideoId(urlOrId)
+        videoId = VideoIdParser.getVideoId(urlOrId)
         if (videoId == null) {
             log.e("Invalid YouTube link format: $urlOrId")
             return null
         }
 
         val streamInfo = getStreamInfo()
-        val metadata = VideoMetadataParser().parseVideoMetadata(videoId!!, streamInfo)
+        val metadata = VideoMetadataParser.parseVideoMetadata(videoId!!, streamInfo)
         val files = if (metadata.isLive) {
             getLiveStreamFiles(streamInfo)
         } else {
