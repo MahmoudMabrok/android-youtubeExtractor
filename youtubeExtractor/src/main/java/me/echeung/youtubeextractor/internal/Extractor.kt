@@ -9,7 +9,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import me.echeung.youtubeextractor.Video
+import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.internal.cipher.CipherClient
 import me.echeung.youtubeextractor.internal.http.HttpClient
@@ -33,13 +33,13 @@ class Extractor(private val contextRef: WeakReference<Context>) {
 
         val streamInfo = getStreamInfo()
         val metadata = VideoMetadataParser().parseVideoMetadata(videoId!!, streamInfo)
-        val videos = if (metadata.isLive) {
-            getLiveStreamVideos(streamInfo)
+        val files = if (metadata.isLive) {
+            getLiveStreamFiles(streamInfo)
         } else {
-            getNonLiveStreamVideos(streamInfo)
+            getNonLiveStreamFiles(streamInfo)
         }
 
-        return YouTubeExtractor.Result(videos, metadata)
+        return YouTubeExtractor.Result(files, metadata)
     }
 
     private fun getStreamInfo(): JsonObject {
@@ -59,12 +59,12 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         return Json.decodeFromString(jsonStr)
     }
 
-    private suspend fun getNonLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
+    private suspend fun getNonLiveStreamFiles(streamInfo: JsonObject): Map<Int, YTFile>? {
         val streamingData = streamInfo["streamingData"]!!.jsonObject
         val adaptiveFormats = streamingData["adaptiveFormats"]!!.jsonArray
-        val encSignatures = mutableListOf<Pair<Int, String>>()
+        val encryptedSignatures = mutableListOf<Pair<Int, String>>()
 
-        var videos = adaptiveFormats
+        var files = adaptiveFormats
             .map {
                 val obj = it.jsonObject
                 val itag = obj["itag"]!!.jsonPrimitive.int
@@ -83,7 +83,7 @@ class Extractor(private val contextRef: WeakReference<Context>) {
                             var sig = URLDecoder.decode(matcher.group(1), "UTF-8")
                             sig = sig.replace("\\u0026", "&")
                             sig = sig.split("&").toTypedArray()[0]
-                            encSignatures.add(Pair(itag, sig))
+                            encryptedSignatures.add(Pair(itag, sig))
                         }
                     }
                 }
@@ -91,59 +91,58 @@ class Extractor(private val contextRef: WeakReference<Context>) {
                 Pair(itag, extractedUrl)
             }
             .filter { (itag, url) -> FORMAT_MAP[itag] != null && !url!!.contains("&source=yt_otf&") }
-            .map { (itag, url) -> Video(FORMAT_MAP[itag]!!, url!!) }
+            .map { (itag, url) -> YTFile(FORMAT_MAP[itag]!!, url!!) }
             .associateBy { it.format.itag }
 
-        if (encSignatures.isNotEmpty()) {
-            Log.d(TAG, "Decipher signatures: " + encSignatures.size + ", videos: " + videos.size)
+        if (encryptedSignatures.isNotEmpty()) {
+            Log.d(TAG, "Decipher signatures: " + encryptedSignatures.size + ", files: " + files.size)
 
             val cipherClient = CipherClient(http, contextRef)
 
             // Same order as encSignatures
-            val signatures = cipherClient.decipherSignature(videoId!!, encSignatures)
+            val signatures = cipherClient.decipherSignature(videoId!!, encryptedSignatures)
             signatures ?: return null
 
             val signaturesByItag = signatures.split("\n")
-                .mapIndexed { index, signature -> Pair(encSignatures[index].first, signature) }
+                .mapIndexed { index, signature -> Pair(encryptedSignatures[index].first, signature) }
                 .associateBy { it.first }
 
-            videos = videos.values
+            files = files.values
                 .map {
                     val itag = it.format.itag
-                    Video(FORMAT_MAP[itag]!!, "${it.url}&sig=${signaturesByItag[itag]}")
+                    YTFile(FORMAT_MAP[itag]!!, "${it.url}&sig=${signaturesByItag[itag]}")
                 }
                 .associateBy { it.format.itag }
         }
 
-        if (videos.isEmpty()) {
+        if (files.isEmpty()) {
             return null
         }
 
-        return videos
+        return files
     }
 
-    private fun getLiveStreamVideos(streamInfo: JsonObject): Map<Int, Video>? {
+    private fun getLiveStreamFiles(streamInfo: JsonObject): Map<Int, YTFile>? {
         val streamingData = streamInfo["streamingData"]!!.jsonObject
         val hlsManifestUrl = streamingData["hlsManifestUrl"]!!.jsonPrimitive.content
 
-        val videos = mutableMapOf<Int, Video>()
+        val files = mutableMapOf<Int, YTFile>()
 
         http.get(hlsManifestUrl) {
             if (it.startsWith("http")) {
                 val matcher = patHlsItag.matcher(it)
                 if (matcher.find()) {
                     val itag: Int = matcher.group(1).toInt()
-                    val newFile = Video(FORMAT_MAP[itag]!!, it)
-                    videos.put(itag, newFile)
+                    files[itag] = YTFile(FORMAT_MAP[itag]!!, it)
                 }
             }
         }
 
-        if (videos.isEmpty()) {
+        if (files.isEmpty()) {
             return null
         }
 
-        return videos
+        return files
     }
 
     companion object {

@@ -17,37 +17,64 @@ class CipherClient(
     private val contextRef: WeakReference<Context>
 ) {
 
-    suspend fun decipherSignature(videoId: String, encSignatures: List<Pair<Int, String>>): String? {
-        val decipherJsFileName = getCipherJS(videoId)
-        decipherJsFileName ?: return null
+    suspend fun decipherSignature(videoId: String, encryptedSignatures: List<Pair<Int, String>>): String? {
+        val cipherJS = getCipherJS(videoId)
+        cipherJS ?: return null
 
-        val decipherFunctUrl = "https://youtube.com$decipherJsFileName"
-        Log.d(Extractor.TAG, "Decipher function URL: $decipherFunctUrl")
+        val func = findDecipherFunction(cipherJS)
+        func ?: return null
 
-        val javascriptFile: String
-        val sb = StringBuilder("")
-        http.get(decipherFunctUrl) {
-            sb.append(it)
-            sb.append(" ")
+        return withContext(Dispatchers.Main) {
+            decipherViaWebView(encryptedSignatures, func.first, func.second)
         }
-        javascriptFile = sb.toString()
+    }
 
-        var mat = patSignatureDecFunction.matcher(javascriptFile)
+    private fun getCipherJS(videoId: String): String? {
+        val pageText = StringBuilder()
+        http.get("https://youtube.com/watch?v=$videoId") { line: String ->
+            pageText.append(line.replace("\\\"", "\""))
+        }
+        val videoPage = pageText.toString()
+
+        var mat = patDecryptionJsFile.matcher(videoPage)
+        if (!mat.find()) {
+            mat = patDecryptionJsFileWithoutSlash.matcher(videoPage)
+        }
         if (!mat.find()) {
             return null
         }
+
+        val fileName = mat.group(0).replace("\\/", "/")
+
+        val url = "https://youtube.com$fileName"
+        Log.d(Extractor.TAG, "Decipher function URL: $fileName")
+
+        val file = StringBuilder("")
+        http.get(url) {
+            file.append(it)
+            file.append(" ")
+        }
+        return file.toString()
+    }
+
+    private fun findDecipherFunction(cipherJS: String): Pair<String, String>? {
+        var mat = patSignatureDecFunction.matcher(cipherJS)
+        if (!mat.find()) {
+            return null
+        }
+
         val decipherFunctionName = mat.group(1)
         Log.d(Extractor.TAG, "Decipher function name: $decipherFunctionName")
         val patMainVariable = ("(var |\\s|,|;)" + decipherFunctionName.replace("$", "\\$") +
             "(=function\\((.{1,3})\\)\\{)").toPattern()
         var mainDecipherFunct: String
-        mat = patMainVariable.matcher(javascriptFile)
+        mat = patMainVariable.matcher(cipherJS)
         if (mat.find()) {
             mainDecipherFunct = "var " + decipherFunctionName + mat.group(2)
         } else {
             val patMainFunction = ("function " + decipherFunctionName.replace("$", "\\$") +
                 "(\\((.{1,3})\\)\\{)").toPattern()
-            mat = patMainFunction.matcher(javascriptFile)
+            mat = patMainFunction.matcher(cipherJS)
             if (!mat.find()) {
                 return null
             }
@@ -56,12 +83,12 @@ class CipherClient(
         var startIndex = mat.end()
         var braces = 1
         var i = startIndex
-        while (i < javascriptFile.length) {
+        while (i < cipherJS.length) {
             if (braces == 0 && startIndex + 5 < i) {
-                mainDecipherFunct += javascriptFile.substring(startIndex, i) + ";"
+                mainDecipherFunct += cipherJS.substring(startIndex, i) + ";"
                 break
             }
-            if (javascriptFile[i] == '{') braces++ else if (javascriptFile[i] == '}') braces--
+            if (cipherJS[i] == '{') braces++ else if (cipherJS[i] == '}') braces--
             i++
         }
         var decipherFunctions = mainDecipherFunct
@@ -74,18 +101,18 @@ class CipherClient(
             if (decipherFunctions.contains(variableDef)) {
                 continue
             }
-            startIndex = javascriptFile.indexOf(variableDef) + variableDef.length
+            startIndex = cipherJS.indexOf(variableDef) + variableDef.length
             var braces = 1
             var i = startIndex
-            while (i < javascriptFile.length) {
+            while (i < cipherJS.length) {
                 if (braces == 0) {
-                    decipherFunctions += variableDef + javascriptFile.substring(
+                    decipherFunctions += variableDef + cipherJS.substring(
                         startIndex,
                         i
                     ) + ";"
                     break
                 }
-                if (javascriptFile[i] == '{') braces++ else if (javascriptFile[i] == '}') braces--
+                if (cipherJS[i] == '{') braces++ else if (cipherJS[i] == '}') braces--
                 i++
             }
         }
@@ -96,51 +123,32 @@ class CipherClient(
             if (decipherFunctions.contains(functionDef)) {
                 continue
             }
-            startIndex = javascriptFile.indexOf(functionDef) + functionDef.length
+            startIndex = cipherJS.indexOf(functionDef) + functionDef.length
             var braces = 0
             var i = startIndex
-            while (i < javascriptFile.length) {
+            while (i < cipherJS.length) {
                 if (braces == 0 && startIndex + 5 < i) {
-                    decipherFunctions += functionDef + javascriptFile.substring(
+                    decipherFunctions += functionDef + cipherJS.substring(
                         startIndex,
                         i
                     ) + ";"
                     break
                 }
-                if (javascriptFile[i] == '{') braces++ else if (javascriptFile[i] == '}') braces--
+                if (cipherJS[i] == '{') braces++ else if (cipherJS[i] == '}') braces--
                 i++
             }
         }
         Log.d(Extractor.TAG, "Decipher function: $decipherFunctions")
-
-        return withContext(Dispatchers.Main) {
-            decipherViaWebView(encSignatures, decipherFunctions, decipherFunctionName)
-        }
+        return Pair(decipherFunctions, decipherFunctionName)
     }
 
-    private fun getCipherJS(videoId: String): String? {
-        val sbStreamMap = StringBuilder()
-        http.get("https://youtube.com/watch?v=$videoId") { line: String ->
-            sbStreamMap.append(line.replace("\\\"", "\""))
-        }
-        val streamMap = sbStreamMap.toString()
-        var mat = patDecryptionJsFile.matcher(streamMap)
-        if (!mat.find()) {
-            mat = patDecryptionJsFileWithoutSlash.matcher(streamMap)
-        }
-        if (mat.find()) {
-            return mat.group(0).replace("\\/", "/")
-        }
-        return null
-    }
-
-    private suspend fun decipherViaWebView(encSignatures: List<Pair<Int, String>>, decipherFunctions: String, decipherFunctionName: String): String? {
+    private suspend fun decipherViaWebView(encryptedSignatures: List<Pair<Int, String>>, decipherFunctions: String, decipherFunctionName: String): String? {
         val context = contextRef.get() ?: return null
 
         val script = """
             $decipherFunctions
             function decipher() {
-                return ${encSignatures.map { it.second }.joinToString(" +\n") { "($decipherFunctionName(\"$it\"))"}};
+                return ${encryptedSignatures.map { it.second }.joinToString(" +\n") { "($decipherFunctionName(\"$it\"))"}};
             }
             decipher();
         """.trimIndent()

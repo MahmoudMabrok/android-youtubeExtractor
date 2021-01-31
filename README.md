@@ -36,7 +36,7 @@ val youtubeLink = "http://youtube.com/watch?v=xxxx"
 
 scope.launch {
     val result = YouTubeExtractor(context).extract(youtubeLink)
-    result?.videos?.let {
+    result?.files?.let {
         val downloadUrl = it[22].url
         // ...
     }
@@ -46,7 +46,7 @@ scope.launch {
 }
 ```
 
-`videos` is a map of available media files for one YouTube video, accessible by their itag value.
+`files` is a map of available media files for one YouTube video, accessible by their itag value.
 For further info about itags and their associated formats refer to: [Wikipedia - YouTube Quality and formats](http://en.wikipedia.org/wiki/YouTube#Quality_and_formats).
 
 

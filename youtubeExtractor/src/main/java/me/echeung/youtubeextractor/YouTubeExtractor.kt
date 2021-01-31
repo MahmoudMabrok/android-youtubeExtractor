@@ -22,7 +22,7 @@ class YouTubeExtractor(context: Context) {
     }
 
     class Result(
-        val videos: Map<Int, Video>?,
-        val metadata: Metadata
+        val files: Map<Int, YTFile>?,
+        val metadata: YTMetadata
     )
 }

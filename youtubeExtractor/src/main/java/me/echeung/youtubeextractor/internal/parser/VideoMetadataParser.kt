@@ -4,13 +4,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
-import me.echeung.youtubeextractor.Metadata
+import me.echeung.youtubeextractor.YTMetadata
 
 class VideoMetadataParser {
-    fun parseVideoMetadata(videoId: String, streamInfo: JsonObject): Metadata {
+    fun parseVideoMetadata(videoId: String, streamInfo: JsonObject): YTMetadata {
         val videoDetails = streamInfo["videoDetails"]!!.jsonObject
 
-        return Metadata(
+        return YTMetadata(
             videoId,
             title = videoDetails["title"]!!.jsonPrimitive.content,
             author = videoDetails["author"]!!.jsonPrimitive.content,

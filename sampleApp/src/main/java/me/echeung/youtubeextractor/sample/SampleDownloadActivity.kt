@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -15,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.echeung.youtubeextractor.Video
+import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.sample.databinding.ActivitySampleDownloadBinding
 
@@ -51,37 +50,35 @@ class SampleDownloadActivity : AppCompatActivity() {
     }
 
     private fun getYoutubeDownloadUrl(youtubeLink: String?) {
+        val extractor = YouTubeExtractor(this)
         GlobalScope.launch(Dispatchers.IO) {
-            val result = YouTubeExtractor().extract(youtubeLink)
+            val result = extractor.extract(youtubeLink)
             withContext(Dispatchers.Main) { binding.loading.isGone = true }
-            if (result?.videos == null) {
+            if (result?.files == null) {
                 // Something went wrong we got no urls. Always check this.
                 withContext(Dispatchers.Main) { finish() }
                 return@launch
             }
 
-            result.videos!!.values.forEach {
+            result.files!!.values.forEach {
                 withContext(Dispatchers.Main) { addButtonToMainLayout(result.metadata!!.title, it) }
             }
         }
     }
 
-    private fun addButtonToMainLayout(videoTitle: String, ytfile: Video) {
+    private fun addButtonToMainLayout(videoTitle: String, file: YTFile) {
         // Display some buttons and let the user choose the format
-        var btnText = if (ytfile.format.height == -1) "Audio " +
-            ytfile.format.audioBitrate + " kbit/s" else ytfile.format.height.toString() + "p"
-        btnText += if (ytfile.format.isDashContainer) " dash" else ""
+        var btnText = if (file.format.height == -1)
+            "Audio " + file.format.audioBitrate + " kbit/s"
+        else
+            file.format.height.toString() + "p"
+        btnText += if (file.format.isDashContainer) " dash" else ""
         val btn = Button(this)
         btn.text = btnText
-        btn.setOnClickListener { v: View? ->
-            var filename: String = if (videoTitle.length > 55) {
-                videoTitle.substring(0, 55) + "." + ytfile.format.ext
-            } else {
-                videoTitle + "." + ytfile.format.ext
-            }
+        btn.setOnClickListener {
+            var filename = videoTitle.take(55) + "." + file.format.ext
             filename = filename.replace("[\\\\><\"|*?%:#/]".toRegex(), "")
-            downloadFromUrl(ytfile.url, videoTitle, filename)
-            finish()
+            downloadFromUrl(file.url, videoTitle, filename)
         }
         binding.mainLayout.addView(btn)
     }

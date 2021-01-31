@@ -1,6 +1,6 @@
 package me.echeung.youtubeextractor
 
-data class Metadata(
+data class YTMetadata(
     val videoId: String,
     val title: String,
     val author: String,
