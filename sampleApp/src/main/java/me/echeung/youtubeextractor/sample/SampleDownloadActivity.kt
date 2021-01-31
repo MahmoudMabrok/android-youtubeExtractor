@@ -31,12 +31,9 @@ class SampleDownloadActivity : AppCompatActivity() {
 
         // Check how it was started and if we can get the youtube link
         if (savedInstanceState == null && Intent.ACTION_SEND == intent.action && intent.type != null && "text/plain" == intent.type) {
-            val ytLink = intent.getStringExtra(Intent.EXTRA_TEXT)
-            if (ytLink != null
-                && (ytLink.contains("://youtu.be/") || ytLink.contains("youtube.com/watch?v="))
-            ) {
-                youtubeLink = ytLink
-                // We have a valid link
+            val url = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (url != null && (url.contains("://youtu.be/") || url.contains("youtube.com/watch?v="))) {
+                youtubeLink = url
                 getYoutubeDownloadUrl(youtubeLink)
             } else {
                 Toast.makeText(this, R.string.error_no_yt_link, Toast.LENGTH_LONG).show()
@@ -51,45 +48,46 @@ class SampleDownloadActivity : AppCompatActivity() {
 
     private fun getYoutubeDownloadUrl(youtubeLink: String?) {
         val extractor = YouTubeExtractor(this)
+
         GlobalScope.launch(Dispatchers.IO) {
             val result = extractor.extract(youtubeLink)
             withContext(Dispatchers.Main) { binding.loading.isGone = true }
             if (result?.files == null) {
-                // Something went wrong we got no urls. Always check this.
                 withContext(Dispatchers.Main) { finish() }
                 return@launch
             }
 
             result.files!!.values.forEach {
-                withContext(Dispatchers.Main) { addButtonToMainLayout(result.metadata!!.title, it) }
+                withContext(Dispatchers.Main) { addButton(result.metadata.videoId, it) }
             }
         }
     }
 
-    private fun addButtonToMainLayout(videoTitle: String, file: YTFile) {
-        // Display some buttons and let the user choose the format
+    private fun addButton(videoId: String, file: YTFile) {
         var btnText = if (file.format.height == -1)
-            "Audio " + file.format.audioBitrate + " kbit/s"
+            "Audio ${file.format.audioBitrate} kbit/s"
         else
-            file.format.height.toString() + "p"
+            "${file.format.height}p"
         btnText += if (file.format.isDashContainer) " dash" else ""
-        val btn = Button(this)
-        btn.text = btnText
-        btn.setOnClickListener {
-            var filename = videoTitle.take(55) + "." + file.format.ext
-            filename = filename.replace("[\\\\><\"|*?%:#/]".toRegex(), "")
-            downloadFromUrl(file.url, videoTitle, filename)
+
+        val btn = Button(this).apply {
+            text = btnText
+            setOnClickListener {
+                downloadFromUrl(file.url, videoId, "${videoId.take(55)}.${file.format.ext}")
+            }
         }
+
         binding.mainLayout.addView(btn)
     }
 
-    private fun downloadFromUrl(youtubeDlUrl: String, downloadTitle: String, fileName: String) {
-        val uri = Uri.parse(youtubeDlUrl)
-        val request = DownloadManager.Request(uri)
-        request.setTitle(downloadTitle)
-        request.allowScanningByMediaScanner()
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+    private fun downloadFromUrl(downloadUrl: String, downloadTitle: String, fileName: String) {
+        val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
+            setTitle(downloadTitle)
+            allowScanningByMediaScanner()
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+        }
+
         val manager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
         manager.enqueue(request)
     }
