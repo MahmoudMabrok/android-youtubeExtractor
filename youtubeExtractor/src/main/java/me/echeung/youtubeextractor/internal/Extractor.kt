@@ -64,10 +64,11 @@ class Extractor(private val contextRef: WeakReference<Context>) {
 
     private suspend fun getNonLiveStreamFiles(streamInfo: JsonObject): Map<Int, YTFile>? {
         val streamingData = streamInfo["streamingData"]!!.jsonObject
-        val adaptiveFormats = streamingData["adaptiveFormats"]!!.jsonArray
+        val adaptiveFormats = streamingData["adaptiveFormats"]?.jsonArray?.toList() ?: emptyList()
+        val formats = streamingData["formats"]?.jsonArray?.toList() ?: emptyList()
         val encryptedSignatures = mutableListOf<Pair<Int, String>>()
 
-        var files = adaptiveFormats
+        var files = (adaptiveFormats + formats)
             .map {
                 val obj = it.jsonObject
                 val itag = obj["itag"]!!.jsonPrimitive.int
