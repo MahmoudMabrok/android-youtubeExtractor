@@ -2,19 +2,15 @@ package me.echeung.youtubeextractor.internal
 
 import android.content.Context
 import android.util.Log
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.YouTubeExtractor
 import me.echeung.youtubeextractor.internal.cipher.CipherUtil
 import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.parser.VideoIdParser
 import me.echeung.youtubeextractor.internal.parser.VideoMetadataParser
+import me.echeung.youtubeextractor.internal.util.toList
+import org.json.JSONArray
+import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -45,7 +41,7 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         return YouTubeExtractor.Result(files, metadata)
     }
 
-    private fun getStreamInfo(): JsonObject {
+    private fun getStreamInfo(): JSONObject {
         val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
             URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8")
 
@@ -59,21 +55,21 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         val matcher = "player_response=(\\{.*\\})".toPattern().matcher(data)
         matcher.find()
         val jsonStr = matcher.group(1)
-        return Json.decodeFromString(jsonStr)
+        return JSONObject(jsonStr!!)
     }
 
-    private suspend fun getNonLiveStreamFiles(streamInfo: JsonObject): Map<Int, YTFile>? {
-        val streamingData = streamInfo["streamingData"]!!.jsonObject
-        val adaptiveFormats = streamingData["adaptiveFormats"]?.jsonArray?.toList() ?: emptyList()
-        val formats = streamingData["formats"]?.jsonArray?.toList() ?: emptyList()
+    private suspend fun getNonLiveStreamFiles(streamInfo: JSONObject): Map<Int, YTFile>? {
+        val streamingData = streamInfo.getJSONObject("streamingData")
+        val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats") ?: JSONArray()
+        val formats = streamingData.optJSONArray("formats") ?: JSONArray()
         val encryptedSignatures = mutableListOf<Pair<Int, String>>()
 
-        var files = (adaptiveFormats + formats)
+        var files = (adaptiveFormats.toList() + formats.toList())
             .map {
-                val obj = it.jsonObject
-                val itag = obj["itag"]!!.jsonPrimitive.int
-                val url = obj["url"]?.jsonPrimitive?.content
-                val cipher = obj["signatureCipher"]?.jsonPrimitive?.content
+                val obj = it as JSONObject
+                val itag = obj.getInt("itag")
+                val url: String? = obj.optString("url")
+                val cipher: String? = obj.optString("signatureCipher")
                 Triple(itag, url, cipher)
             }
             .map { (itag, url, cipher) ->
@@ -120,9 +116,9 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         return files
     }
 
-    private fun getLiveStreamFiles(streamInfo: JsonObject): Map<Int, YTFile>? {
-        val streamingData = streamInfo["streamingData"]!!.jsonObject
-        val hlsManifestUrl = streamingData["hlsManifestUrl"]!!.jsonPrimitive.content
+    private fun getLiveStreamFiles(streamInfo: JSONObject): Map<Int, YTFile>? {
+        val streamingData = streamInfo.getJSONObject("streamingData")
+        val hlsManifestUrl = streamingData.getString("hlsManifestUrl")
 
         val files = mutableMapOf<Int, YTFile>()
 

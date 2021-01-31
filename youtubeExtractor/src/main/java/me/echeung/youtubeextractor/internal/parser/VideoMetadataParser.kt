@@ -1,25 +1,22 @@
 package me.echeung.youtubeextractor.internal.parser
 
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.long
 import me.echeung.youtubeextractor.YTMetadata
+import org.json.JSONObject
 
 class VideoMetadataParser {
-    fun parseVideoMetadata(videoId: String, streamInfo: JsonObject): YTMetadata {
-        val videoDetails = streamInfo["videoDetails"]!!.jsonObject
+    fun parseVideoMetadata(videoId: String, streamInfo: JSONObject): YTMetadata {
+        val videoDetails = streamInfo.getJSONObject("videoDetails")
 
         return YTMetadata(
             videoId,
-            title = videoDetails["title"]!!.jsonPrimitive.content,
-            author = videoDetails["author"]!!.jsonPrimitive.content,
-            channelId = videoDetails["channelId"]!!.jsonPrimitive.content,
-            duration = videoDetails["lengthSeconds"]!!.jsonPrimitive.long,
-            viewCount = videoDetails["viewCount"]!!.jsonPrimitive.long,
-            isLive = videoDetails["lengthSeconds"]!!.jsonPrimitive.long == 0L,
-            isLiveContent = videoDetails["isLiveContent"]!!.jsonPrimitive.content == "true",
-            shortDescription = videoDetails["shortDescription"]!!.jsonPrimitive.content
+            title = videoDetails.getString("title"),
+            author = videoDetails.getString("author"),
+            channelId = videoDetails.getString("channelId"),
+            duration = videoDetails.getString("lengthSeconds").toLong(),
+            viewCount = videoDetails.getString("viewCount").toLong(),
+            isLive = videoDetails.getString("lengthSeconds").toLong() == 0L,
+            isLiveContent = videoDetails.getBoolean("isLiveContent"),
+            shortDescription = videoDetails.getString("shortDescription")
         )
     }
 }
