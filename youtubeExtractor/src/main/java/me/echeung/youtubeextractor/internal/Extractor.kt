@@ -9,11 +9,11 @@ import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.parser.VideoIdParser
 import me.echeung.youtubeextractor.internal.parser.VideoMetadataParser
 import me.echeung.youtubeextractor.internal.util.toList
+import me.echeung.youtubeextractor.internal.util.urlDecode
+import me.echeung.youtubeextractor.internal.util.urlEncode
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.ref.WeakReference
-import java.net.URLDecoder
-import java.net.URLEncoder
 
 class Extractor(private val contextRef: WeakReference<Context>) {
 
@@ -43,13 +43,12 @@ class Extractor(private val contextRef: WeakReference<Context>) {
 
     private fun getStreamInfo(): JSONObject {
         val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
-            URLEncoder.encode("https://youtube.googleapis.com/v/$videoId", "UTF-8")
+            "https://youtube.googleapis.com/v/$videoId".urlEncode()
 
         // This is basically a URL query parameter list (i.e. foo=bar&baz=baq&...)
         var data = ""
         http.get(ytInfoUrl) { data = it }
-        data = URLDecoder.decode(data, "UTF-8")
-        data = data.replace("\\u0026", "&")
+        data = data.urlDecode().replace("\\u0026", "&")
 
         // Extract the relevant JSON
         val matcher = "player_response=(\\{.*\\})".toPattern().matcher(data)
@@ -62,6 +61,7 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         val streamingData = streamInfo.getJSONObject("streamingData")
         val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats") ?: JSONArray()
         val formats = streamingData.optJSONArray("formats") ?: JSONArray()
+
         val encryptedSignatures = mutableListOf<Pair<Int, String>>()
 
         var files = (adaptiveFormats.toList() + formats.toList())
@@ -77,10 +77,10 @@ class Extractor(private val contextRef: WeakReference<Context>) {
                 if (cipher != null) {
                     var matcher = CIPHER_URL_PATTERN.matcher(cipher)
                     if (matcher.find()) {
-                        extractedUrl = URLDecoder.decode(matcher.group(1), "UTF-8")
+                        extractedUrl = matcher.group(1).urlDecode()
                         matcher = ENCIPHERED_SIGNATURE_PATTERN.matcher(cipher)
                         if (matcher.find()) {
-                            var sig = URLDecoder.decode(matcher.group(1), "UTF-8")
+                            var sig = matcher.group(1).urlDecode()
                             sig = sig.replace("\\u0026", "&")
                             sig = sig.split("&").toTypedArray()[0]
                             encryptedSignatures.add(itag to sig)
