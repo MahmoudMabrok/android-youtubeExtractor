@@ -26,7 +26,10 @@ repositories {
 And the dependency:
 
 ```java
-implementation 'com.github.arkon:android-youtubeExtractor:[commitSha]'
+// Required dependency
+implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version"
+
+implementation "com.github.arkon:android-youtubeExtractor:$version"
 ```
 
 ## Usage
@@ -61,9 +64,8 @@ Those videos aren't working:
 
 ## Modules
 
-* **youtubeExtractor:** The extractor android library.
-
-* **sampleApp:** A simple example downloader App.
+- **youtubeExtractor:** The extractor android library.
+- **sampleApp:** A simple example downloader App.
 
 ## License
 
