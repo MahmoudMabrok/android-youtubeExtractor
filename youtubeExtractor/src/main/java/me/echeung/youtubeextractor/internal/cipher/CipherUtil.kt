@@ -12,12 +12,12 @@ import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class CipherClient(
+class CipherUtil(
     private val http: HttpClient,
     private val contextRef: WeakReference<Context>
 ) {
 
-    suspend fun decipherSignature(videoId: String, encryptedSignatures: List<Pair<Int, String>>): String? {
+    suspend fun decipherSignatures(videoId: String, encryptedSignatures: List<Pair<Int, String>>): Map<Int, String>? {
         val cipherJS = getCipherJS(videoId)
         cipherJS ?: return null
 
@@ -25,7 +25,14 @@ class CipherClient(
         func ?: return null
 
         return withContext(Dispatchers.Main) {
-            decipherViaWebView(encryptedSignatures, func.first, func.second)
+            val (functions, functionName) = func
+            decipherViaWebView(encryptedSignatures, functions, functionName)
+                ?.split("\n")
+                ?.mapIndexed { index, signature ->
+                    val itag = encryptedSignatures[index].first
+                    itag to signature
+                }
+                ?.toMap()
         }
     }
 
@@ -36,9 +43,9 @@ class CipherClient(
         }
         val videoPage = pageText.toString()
 
-        var mat = patDecryptionJsFile.matcher(videoPage)
+        var mat = DECRYPTION_JS_FILE_PATTERN.matcher(videoPage)
         if (!mat.find()) {
-            mat = patDecryptionJsFileWithoutSlash.matcher(videoPage)
+            mat = DECRYPTION_JS_FILE_WITHOUT_SLASH_PATTERN.matcher(videoPage)
         }
         if (!mat.find()) {
             return null
@@ -58,7 +65,7 @@ class CipherClient(
     }
 
     private fun findDecipherFunction(cipherJS: String): Pair<String, String>? {
-        var mat = patSignatureDecFunction.matcher(cipherJS)
+        var mat = SIGNATURE_DECRYPTION_FUNCTION_PATTERN.matcher(cipherJS)
         if (!mat.find()) {
             return null
         }
@@ -95,7 +102,7 @@ class CipherClient(
         // Search the main function for extra functions and variables
         // needed for deciphering
         // Search for variables
-        mat = patVariableFunction.matcher(mainDecipherFunct)
+        mat = VARIABLE_FUNCTION_PATTERN.matcher(mainDecipherFunct)
         while (mat.find()) {
             val variableDef = "var " + mat.group(2) + "={"
             if (decipherFunctions.contains(variableDef)) {
@@ -117,7 +124,7 @@ class CipherClient(
             }
         }
         // Search for functions
-        mat = patFunction.matcher(mainDecipherFunct)
+        mat = FUNCTION_PATTERN.matcher(mainDecipherFunct)
         while (mat.find()) {
             val functionDef = "function " + mat.group(2) + "("
             if (decipherFunctions.contains(functionDef)) {
@@ -145,10 +152,11 @@ class CipherClient(
     private suspend fun decipherViaWebView(encryptedSignatures: List<Pair<Int, String>>, decipherFunctions: String, decipherFunctionName: String): String? {
         val context = contextRef.get() ?: return null
 
+        // Output the deciphered signatures one per line so we can parse it again after
         val script = """
             $decipherFunctions
             function decipher() {
-                return ${encryptedSignatures.map { it.second }.joinToString(" +\n") { "($decipherFunctionName(\"$it\"))"}};
+                return ${encryptedSignatures.map { it.second }.joinToString(" + \"\\n\" + ") { "$decipherFunctionName(\"$it\")"}};
             }
             decipher();
         """.trimIndent()
@@ -168,20 +176,20 @@ class CipherClient(
     }
 
     companion object {
-        private val patDecryptionJsFile by lazy {
+        private val DECRYPTION_JS_FILE_PATTERN by lazy {
             "\\\\/s\\\\/player\\\\/([^\"]+?)\\.js".toPattern()
         }
-        private val patDecryptionJsFileWithoutSlash by lazy {
+        private val DECRYPTION_JS_FILE_WITHOUT_SLASH_PATTERN by lazy {
             "/s/player/([^\"]+?).js".toPattern()
         }
-        private val patSignatureDecFunction by lazy {
+        private val SIGNATURE_DECRYPTION_FUNCTION_PATTERN by lazy {
             "(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)".toPattern()
         }
 
-        private val patVariableFunction by lazy {
+        private val VARIABLE_FUNCTION_PATTERN by lazy {
             "([{; =])([a-zA-Z$][a-zA-Z0-9$]{0,2})\\.([a-zA-Z$][a-zA-Z0-9$]{0,2})\\(".toPattern()
         }
-        private val patFunction by lazy {
+        private val FUNCTION_PATTERN by lazy {
             "([{; =])([a-zA-Z$\\_][a-zA-Z0-9$]{0,2})\\(".toPattern()
         }
     }

@@ -11,7 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.YouTubeExtractor
-import me.echeung.youtubeextractor.internal.cipher.CipherClient
+import me.echeung.youtubeextractor.internal.cipher.CipherUtil
 import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.parser.VideoIdParser
 import me.echeung.youtubeextractor.internal.parser.VideoMetadataParser
@@ -38,6 +38,9 @@ class Extractor(private val contextRef: WeakReference<Context>) {
         } else {
             getNonLiveStreamFiles(streamInfo)
         }
+
+        Log.d(TAG, "Video metadata: $metadata")
+        Log.d(TAG, "Video files: $files")
 
         return YouTubeExtractor.Result(files, metadata)
     }
@@ -75,42 +78,36 @@ class Extractor(private val contextRef: WeakReference<Context>) {
             .map { (itag, url, cipher) ->
                 var extractedUrl = url
                 if (cipher != null) {
-                    var matcher = patCipherUrl.matcher(cipher)
+                    var matcher = CIPHER_URL_PATTERN.matcher(cipher)
                     if (matcher.find()) {
                         extractedUrl = URLDecoder.decode(matcher.group(1), "UTF-8")
-                        matcher = patEncSig.matcher(cipher)
+                        matcher = ENCIPHERED_SIGNATURE_PATTERN.matcher(cipher)
                         if (matcher.find()) {
                             var sig = URLDecoder.decode(matcher.group(1), "UTF-8")
                             sig = sig.replace("\\u0026", "&")
                             sig = sig.split("&").toTypedArray()[0]
-                            encryptedSignatures.add(Pair(itag, sig))
+                            encryptedSignatures.add(itag to sig)
                         }
                     }
                 }
 
-                Pair(itag, extractedUrl)
+                itag to extractedUrl
             }
-            .filter { (itag, url) -> FORMAT_MAP[itag] != null && !url!!.contains("&source=yt_otf&") }
+            .filter { (itag, url) -> FORMAT_MAP[itag] != null && url?.contains("&source=yt_otf&") == false }
             .map { (itag, url) -> YTFile(FORMAT_MAP[itag]!!, url!!) }
             .associateBy { it.format.itag }
 
         if (encryptedSignatures.isNotEmpty()) {
             Log.d(TAG, "Decipher signatures: " + encryptedSignatures.size + ", files: " + files.size)
 
-            val cipherClient = CipherClient(http, contextRef)
-
-            // Same order as encSignatures
-            val signatures = cipherClient.decipherSignature(videoId!!, encryptedSignatures)
+            val cipherClient = CipherUtil(http, contextRef)
+            val signatures = cipherClient.decipherSignatures(videoId!!, encryptedSignatures)
             signatures ?: return null
-
-            val signaturesByItag = signatures.split("\n")
-                .mapIndexed { index, signature -> Pair(encryptedSignatures[index].first, signature) }
-                .associateBy { it.first }
 
             files = files.values
                 .map {
                     val itag = it.format.itag
-                    YTFile(FORMAT_MAP[itag]!!, "${it.url}&sig=${signaturesByItag[itag]}")
+                    YTFile(FORMAT_MAP[itag]!!, "${it.url}&sig=${signatures[itag]}")
                 }
                 .associateBy { it.format.itag }
         }
@@ -130,7 +127,7 @@ class Extractor(private val contextRef: WeakReference<Context>) {
 
         http.get(hlsManifestUrl) {
             if (it.startsWith("http")) {
-                val matcher = patHlsItag.matcher(it)
+                val matcher = HLS_ITAG_PATTERN.matcher(it)
                 if (matcher.find()) {
                     val itag: Int = matcher.group(1).toInt()
                     files[itag] = YTFile(FORMAT_MAP[itag]!!, it)
@@ -148,13 +145,13 @@ class Extractor(private val contextRef: WeakReference<Context>) {
     companion object {
         const val TAG = "YouTubeExtractor"
 
-        private val patHlsItag by lazy {
+        private val HLS_ITAG_PATTERN by lazy {
             "/itag/(\\d+?)/".toPattern()
         }
-        private val patCipherUrl by lazy {
+        private val CIPHER_URL_PATTERN by lazy {
             "url=(.+?)(\\\\\\\\u0026|\\z)".toPattern()
         }
-        private val patEncSig by lazy {
+        private val ENCIPHERED_SIGNATURE_PATTERN by lazy {
             "s=(.{10,}?)(\\\\\\\\u0026|\\z)".toPattern()
         }
     }
