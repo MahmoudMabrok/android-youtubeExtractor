@@ -68,7 +68,11 @@ class SampleDownloadActivity : AppCompatActivity() {
             "Audio ${file.format.audioBitrate} kbit/s"
         else
             "${file.format.height}p"
-        btnText += if (file.format.isDashContainer) " dash" else ""
+        btnText += when {
+            file.format.isDashContainer -> " (DASH)"
+            file.format.isHlsContent -> " (HLS)"
+            else -> ""
+        }
 
         val btn = Button(this).apply {
             text = btnText
