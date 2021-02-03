@@ -5,17 +5,17 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 
 fun JSONArray.toList(): List<Any> {
-    val list = ArrayList<Any>();
-    for (i in 1 until this.length()) {
+    val list = mutableListOf<Any>();
+    for (i in 1 until length()) {
         list.add(get(i))
     }
     return list
 }
 
 fun String.urlEncode(): String {
-    return URLEncoder.encode(this, "UTF-8")
+    return URLEncoder.encode(this, Charsets.UTF_8.name())
 }
 
 fun String.urlDecode(): String {
-    return URLDecoder.decode(this, "UTF-8")
+    return URLDecoder.decode(this, Charsets.UTF_8.name())
 }
