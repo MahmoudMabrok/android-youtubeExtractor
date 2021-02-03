@@ -1,6 +1,5 @@
-package me.echeung.youtubeextractor.internal.http
+package me.echeung.youtubeextractor.internal.util
 
-import me.echeung.youtubeextractor.internal.util.Logger
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection

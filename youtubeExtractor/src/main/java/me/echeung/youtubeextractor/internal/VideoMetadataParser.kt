@@ -1,4 +1,4 @@
-package me.echeung.youtubeextractor.internal.parser
+package me.echeung.youtubeextractor.internal
 
 import me.echeung.youtubeextractor.YTMetadata
 import org.json.JSONObject

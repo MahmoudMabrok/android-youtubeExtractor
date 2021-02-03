@@ -4,5 +4,5 @@ import me.echeung.youtubeextractor.YTFile
 import org.json.JSONObject
 
 interface Extractor {
-    suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile>?
+    suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile>
 }

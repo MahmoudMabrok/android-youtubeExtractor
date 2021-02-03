@@ -2,12 +2,12 @@ package me.echeung.youtubeextractor.internal.extractor
 
 import me.echeung.youtubeextractor.YTFile
 import me.echeung.youtubeextractor.internal.FORMAT_MAP
-import me.echeung.youtubeextractor.internal.http.HttpClient
+import me.echeung.youtubeextractor.internal.util.HttpClient
 import org.json.JSONObject
 
 class LiveStreamExtractor(private val http: HttpClient) : Extractor {
 
-    override suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile>? {
+    override suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile> {
         val streamingData = streamInfo.getJSONObject("streamingData")
         val hlsManifestUrl = streamingData.getString("hlsManifestUrl")
 
@@ -21,10 +21,6 @@ class LiveStreamExtractor(private val http: HttpClient) : Extractor {
                     files[itag] = YTFile(FORMAT_MAP[itag]!!, it)
                 }
             }
-        }
-
-        if (files.isEmpty()) {
-            return null
         }
 
         return files

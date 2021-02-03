@@ -1,9 +1,8 @@
 package me.echeung.youtubeextractor.internal.extractor
 
 import me.echeung.youtubeextractor.YTFile
+import me.echeung.youtubeextractor.internal.CipherUtil
 import me.echeung.youtubeextractor.internal.FORMAT_MAP
-import me.echeung.youtubeextractor.internal.cipher.CipherUtil
-import me.echeung.youtubeextractor.internal.http.HttpClient
 import me.echeung.youtubeextractor.internal.util.Logger
 import me.echeung.youtubeextractor.internal.util.toList
 import me.echeung.youtubeextractor.internal.util.urlDecode
@@ -11,12 +10,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class NonLiveStreamExtractor(
-    private val http: HttpClient,
     private val cipherUtil: CipherUtil,
     private val log: Logger
 ) : Extractor {
 
-    override suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile>? {
+    override suspend fun getFiles(videoId: String, streamInfo: JSONObject): Map<Int, YTFile> {
         val streamingData = streamInfo.getJSONObject("streamingData")
         val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats") ?: JSONArray()
         val formats = streamingData.optJSONArray("formats") ?: JSONArray()
@@ -57,7 +55,7 @@ class NonLiveStreamExtractor(
             log.d("Decipher signatures: " + encryptedSignatures.size + ", files: " + files.size)
 
             val signatures = cipherUtil.decipherSignatures(videoId, encryptedSignatures)
-            signatures ?: return null
+            signatures ?: return emptyMap()
 
             files = files.values
                 .map {
@@ -65,10 +63,6 @@ class NonLiveStreamExtractor(
                     YTFile(FORMAT_MAP[itag]!!, "${it.url}&sig=${signatures[itag]}")
                 }
                 .associateBy { it.format.itag }
-        }
-
-        if (files.isEmpty()) {
-            return null
         }
 
         return files

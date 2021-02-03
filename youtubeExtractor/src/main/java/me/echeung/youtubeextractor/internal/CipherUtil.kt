@@ -1,11 +1,11 @@
-package me.echeung.youtubeextractor.internal.cipher
+package me.echeung.youtubeextractor.internal
 
 import android.content.Context
 import com.evgenii.jsevaluator.JsEvaluator
 import com.evgenii.jsevaluator.interfaces.JsCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import me.echeung.youtubeextractor.internal.http.HttpClient
+import me.echeung.youtubeextractor.internal.util.HttpClient
 import me.echeung.youtubeextractor.internal.util.Logger
 import java.lang.ref.WeakReference
 import kotlin.coroutines.resume

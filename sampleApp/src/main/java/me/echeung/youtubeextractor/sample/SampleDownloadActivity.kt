@@ -22,8 +22,6 @@ class SampleDownloadActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySampleDownloadBinding
 
-    private var youtubeLink: String? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySampleDownloadBinding.inflate(LayoutInflater.from(this))
@@ -32,16 +30,15 @@ class SampleDownloadActivity : AppCompatActivity() {
         // Check how it was started and if we can get the youtube link
         if (savedInstanceState == null && Intent.ACTION_SEND == intent.action && intent.type != null && "text/plain" == intent.type) {
             val url = intent.getStringExtra(Intent.EXTRA_TEXT)
-            if (url != null && (url.contains("://youtu.be/") || url.contains("youtube.com/watch?v="))) {
-                youtubeLink = url
-                getYoutubeDownloadUrl(youtubeLink)
-            } else {
-                Toast.makeText(this, R.string.error_no_yt_link, Toast.LENGTH_LONG).show()
+            try {
+                getYoutubeDownloadUrl(url)
+            } catch (e: Throwable) {
+                Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
                 finish()
             }
-        } else if (savedInstanceState != null && youtubeLink != null) {
-            getYoutubeDownloadUrl(youtubeLink)
         } else {
+            // val url = "https://www.youtube.com/watch?v=W8hTq_l7-AQ"
+            // getYoutubeDownloadUrl(url)
             finish()
         }
     }
@@ -87,7 +84,6 @@ class SampleDownloadActivity : AppCompatActivity() {
     private fun downloadFromUrl(downloadUrl: String, downloadTitle: String, fileName: String) {
         val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
             setTitle(downloadTitle)
-            allowScanningByMediaScanner()
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
         }

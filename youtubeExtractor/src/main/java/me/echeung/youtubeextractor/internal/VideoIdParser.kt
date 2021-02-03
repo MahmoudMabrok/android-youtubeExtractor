@@ -1,4 +1,4 @@
-package me.echeung.youtubeextractor.internal.parser
+package me.echeung.youtubeextractor.internal
 
 object VideoIdParser {
 
