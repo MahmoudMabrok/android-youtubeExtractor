@@ -31,7 +31,7 @@ class SampleDownloadActivity : AppCompatActivity() {
         if (savedInstanceState == null && Intent.ACTION_SEND == intent.action && intent.type != null && "text/plain" == intent.type) {
             val url = intent.getStringExtra(Intent.EXTRA_TEXT)
             try {
-                getYoutubeDownloadUrl(url)
+                getYoutubeDownloadUrl(url!!)
             } catch (e: Throwable) {
                 Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
                 finish()
@@ -43,13 +43,13 @@ class SampleDownloadActivity : AppCompatActivity() {
         }
     }
 
-    private fun getYoutubeDownloadUrl(youtubeLink: String?) {
+    private fun getYoutubeDownloadUrl(youtubeLink: String) {
         val extractor = YouTubeExtractor(this, withLogging = true)
 
         GlobalScope.launch(Dispatchers.IO) {
             val result = extractor.extract(youtubeLink)
             withContext(Dispatchers.Main) { binding.loading.isGone = true }
-            if (result?.files == null) {
+            if (result.files == null) {
                 withContext(Dispatchers.Main) { finish() }
                 return@launch
             }
