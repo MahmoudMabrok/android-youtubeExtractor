@@ -7,6 +7,11 @@ object VideoIdParser {
             return null
         }
 
+        // Just return the input if it doesn't seem like a URL
+        if (!url.startsWith("http")) {
+            return url
+        }
+
         var matcher = PAGE_LINK_PATTERN.matcher(url)
         if (matcher.find()) {
             return matcher.group(3)
