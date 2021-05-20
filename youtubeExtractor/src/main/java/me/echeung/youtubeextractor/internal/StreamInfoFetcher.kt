@@ -8,7 +8,7 @@ import org.json.JSONObject
 class StreamInfoFetcher(private val http: HttpClient) {
 
     fun getStreamInfo(videoId: String): JSONObject {
-        val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&eurl=" +
+        val ytInfoUrl = "https://www.youtube.com/get_video_info?video_id=$videoId&html5=1&eurl=" +
             "https://youtube.googleapis.com/v/$videoId".urlEncode()
 
         // This is basically a URL query parameter list (i.e. foo=bar&baz=baq&...)
